@@ -4,8 +4,7 @@
 <head>
     <meta charset="UTF-8">
 
-    <meta name="viewport"
-        content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <title>Monitor Dashboard</title>
 
@@ -37,33 +36,27 @@
         <h2>MONITOR</h2>
 
         <ul>
-            <li class="menu-item active"
-                data-section="dashboard-section">
+            <li class="menu-item active" data-section="dashboard-section">
                 Dashboard
             </li>
 
-            <li class="menu-item admin-only"
-                data-section="servers-section">
+            <li class="menu-item admin-only" data-section="servers-section">
                 Servidores
             </li>
 
-            <li class="menu-item"
-                data-section="metrics-section">
+            <li class="menu-item" data-section="metrics-section">
                 Métricas
             </li>
 
-            <li class="menu-item"
-                data-section="alerts-section">
+            <li class="menu-item" data-section="alerts-section">
                 Alertas
             </li>
 
-            <li class="menu-item"
-                data-section="logs-section">
+            <li class="menu-item" data-section="logs-section">
                 Logs
             </li>
 
-            <li class="menu-item admin-only"
-                data-section="admin-section">
+            <li class="menu-item admin-only" data-section="admin-section">
                 Administração
             </li>
         </ul>
@@ -90,8 +83,7 @@
 
         </header>
 
-        <section id="dashboard-section"
-            class="content-section active-section">
+        <section id="dashboard-section" class="content-section active-section">
 
             <div class="filters dashboard-filters">
 
@@ -105,44 +97,38 @@
 
             <div class="cards">
 
-                <div class="card metric-clickable"
-                    onclick="openMetricModal('cpu')">
+                <div class="card metric-clickable" onclick="openMetricModal('cpu')">
 
                     <h3>CPU</h3>
 
                     <p id="cpu">0%</p>
 
                     <div class="progress-bar">
-                        <div id="cpu-bar"
-                            class="progress-fill"></div>
+                        <div id="cpu-bar" class="progress-fill"></div>
                     </div>
 
                 </div>
 
-                <div class="card metric-clickable"
-                    onclick="openMetricModal('memory')">
+                <div class="card metric-clickable" onclick="openMetricModal('memory')">
 
                     <h3>Memória</h3>
 
                     <p id="memory">0%</p>
 
                     <div class="progress-bar">
-                        <div id="memory-bar"
-                            class="progress-fill"></div>
+                        <div id="memory-bar" class="progress-fill"></div>
                     </div>
 
                 </div>
 
-                <div class="card metric-clickable"
-                    onclick="openMetricModal('disk')">
+                <div class="card metric-clickable" onclick="openMetricModal('disk')">
 
                     <h3>Disco</h3>
 
                     <p id="disk">0%</p>
 
                     <div class="progress-bar">
-                        <div id="disk-bar"
-                            class="progress-fill"></div>
+                        <div id="disk-bar" class="progress-fill"></div>
                     </div>
 
                 </div>
@@ -156,7 +142,6 @@
                     <h3>Sistema</h3>
                     <p id="platform">-</p>
                 </div>
-
             </div>
 
             <div class="chart-card">
@@ -166,18 +151,15 @@
 
         </section>
 
-        <section id="servers-section"
-            class="content-section">
+        <section id="servers-section" class="content-section">
 
             <h2 class="section-title">Servidores</h2>
 
-            <div id="servers-grid"
-                class="servers-grid"></div>
+            <div id="servers-grid" class="servers-grid"></div>
 
         </section>
 
-        <section id="metrics-section"
-            class="content-section">
+        <section id="metrics-section" class="content-section">
 
             <div class="section-header">
 
@@ -201,14 +183,11 @@
                         <option value="custom">Personalizado</option>
                     </select>
 
-                    <div id="custom-filter"
-                        class="custom-filter hidden">
+                    <div id="custom-filter" class="custom-filter hidden">
 
-                        <input type="datetime-local"
-                            id="start-date">
+                        <input type="datetime-local" id="start-date">
 
-                        <input type="datetime-local"
-                            id="end-date">
+                        <input type="datetime-local" id="end-date">
 
                         <button id="apply-custom-filter">
                             Aplicar
@@ -227,8 +206,7 @@
 
         </section>
 
-        <section id="alerts-section"
-            class="content-section">
+        <section id="alerts-section" class="content-section">
 
             <div class="section-header">
                 <h2>Alertas</h2>
@@ -244,8 +222,7 @@
 
         </section>
 
-        <section id="logs-section"
-            class="content-section">
+        <section id="logs-section" class="content-section">
 
             <h2 class="section-title">
                 Logs Realtime
@@ -255,8 +232,7 @@
 
         </section>
 
-        <section id="admin-section"
-            class="content-section">
+        <section id="admin-section" class="content-section">
 
             <h2 class="section-title">
                 Administração
@@ -272,10 +248,7 @@
 
                     <form id="alert-rule-form">
 
-                        <input type="text"
-                            id="alert-rule-name"
-                            placeholder="Nome da regra"
-                            required>
+                        <input type="text" id="alert-rule-name" placeholder="Nome da regra" required>
 
                         <select id="alert-rule-server">
                             <option value="all">
@@ -307,23 +280,15 @@
                             </option>
 
                             <option value="<">
-                                menor que <
-                            </option>
+                                menor que < </option>
 
                             <option value="<=">
-                                menor ou igual <=
-                            </option>
+                                menor ou igual <= </option>
                         </select>
 
-                        <input type="number"
-                            id="alert-rule-threshold"
-                            placeholder="Limite Ex: 85"
-                            required>
+                        <input type="number" id="alert-rule-threshold" placeholder="Limite Ex: 85" required>
 
-                        <input type="number"
-                            id="alert-rule-duration"
-                            placeholder="Duração em segundos"
-                            value="0">
+                        <input type="number" id="alert-rule-duration" placeholder="Duração em segundos" value="0">
 
                         <button type="submit">
                             Criar Regra
@@ -349,8 +314,7 @@
 
     </main>
 
-    <div id="metric-modal"
-        class="metric-modal hidden">
+    <div id="metric-modal" class="metric-modal hidden">
 
         <div class="metric-modal-content">
 
@@ -362,13 +326,11 @@
 
                 <div class="metric-modal-header-right">
 
-                    <span id="metric-modal-current"
-                        class="metric-current-value">
+                    <span id="metric-modal-current" class="metric-current-value">
                         0%
                     </span>
 
-                    <button class="close-modal"
-                        onclick="closeMetricModal()">
+                    <button class="close-modal" onclick="closeMetricModal()">
                         ×
                     </button>
 
