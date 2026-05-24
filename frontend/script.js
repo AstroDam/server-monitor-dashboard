@@ -47,6 +47,13 @@ const dashboardServerFilter =
 const alertServerFilter =
     document.getElementById('alert-server-filter');
 
+const mobileMenuButton =
+    document.getElementById('mobile-menu-button');
+const sidebar =
+    document.getElementById('sidebar');
+const sidebarOverlay =
+    document.getElementById('sidebar-overlay');
+
 const cpuCtx = document.getElementById('cpuChart');
 
 const cpuChart = new Chart(cpuCtx, {
@@ -63,6 +70,7 @@ const cpuChart = new Chart(cpuCtx, {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: {
             legend: {
                 display: false
@@ -93,6 +101,7 @@ const memoryChart = new Chart(memoryCtx, {
     },
     options: {
         responsive: true,
+        maintainAspectRatio: true,
         plugins: {
             legend: {
                 display: false
@@ -117,6 +126,32 @@ function getSelectedMetricServer() {
 
 function getSelectedAlertServer() {
     return alertServerFilter?.value || 'all';
+}
+
+function openMobileMenu() {
+    sidebar.classList.add('open');
+    sidebarOverlay.classList.add('active');
+}
+
+function closeMobileMenu() {
+    sidebar.classList.remove('open');
+    sidebarOverlay.classList.remove('active');
+}
+
+if (mobileMenuButton) {
+    mobileMenuButton.addEventListener('click', () => {
+        if (sidebar.classList.contains('open')) {
+            closeMobileMenu();
+        } else {
+            openMobileMenu();
+        }
+    });
+}
+
+if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => {
+        closeMobileMenu();
+    });
 }
 
 async function loadMetrics() {
@@ -566,6 +601,8 @@ menuItems.forEach(item => {
         document
             .getElementById(sectionId)
             .classList.add('active-section');
+
+        closeMobileMenu();
     });
 });
 
