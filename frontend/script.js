@@ -54,6 +54,56 @@ const sidebar =
 const sidebarOverlay =
     document.getElementById('sidebar-overlay');
 
+const metricModal =
+    document.getElementById('metric-modal');
+const metricModalTitle =
+    document.getElementById('metric-modal-title');
+const metricModalCurrent =
+    document.getElementById('metric-modal-current');
+const metricAverage =
+    document.getElementById('metric-average');
+const metricPeak =
+    document.getElementById('metric-peak');
+const metricMin =
+    document.getElementById('metric-min');
+const metricAlertsList =
+    document.getElementById('metric-alerts-list');
+
+let metricDetailChart = null;
+let currentMetricType = null;
+let lastHistoryData = {
+    labels: [],
+    cpu: [],
+    memory: []
+};
+let lastMetricsData = {
+    cpu_usage: 0,
+    memory_usage: 0,
+    disk_usage: 0
+};
+let lastAlertsData = [];
+
+const metricConfig = {
+    cpu: {
+        title: 'CPU',
+        key: 'cpu',
+        valueKey: 'cpu_usage',
+        alertName: 'cpu_usage'
+    },
+    memory: {
+        title: 'Memória',
+        key: 'memory',
+        valueKey: 'memory_usage',
+        alertName: 'memory_usage'
+    },
+    disk: {
+        title: 'Disco',
+        key: 'disk',
+        valueKey: 'disk_usage',
+        alertName: 'disk_usage'
+    }
+};
+
 const cpuCtx = document.getElementById('cpuChart');
 
 const cpuChart = new Chart(cpuCtx, {
@@ -154,6 +204,189 @@ if (sidebarOverlay) {
     });
 }
 
+function getMetricValues(type) {
+    const config = metricConfig[type];
+
+    if (!config) {
+        return [];
+    }
+
+    if (type === 'disk') {
+        return [
+            Number(lastMetricsData.disk_usage || 0)
+        ];
+    }
+
+    return (lastHistoryData[config.key] || [])
+        .filter(value => value !== null && value !== undefined)
+        .map(value => Number(value));
+}
+
+function calculateMetricStats(values) {
+    if (!values.length) {
+        return {
+            average: 0,
+            peak: 0,
+            min: 0
+        };
+    }
+
+    const sum =
+        values.reduce((acc, value) => acc + value, 0);
+
+    return {
+        average: sum / values.length,
+        peak: Math.max(...values),
+        min: Math.min(...values)
+    };
+}
+
+function renderMetricAlerts(type) {
+    const config = metricConfig[type];
+
+    const filteredAlerts =
+        lastAlertsData.filter(alert =>
+            alert.metric_name === config.alertName
+        );
+
+    metricAlertsList.innerHTML = '';
+
+    if (filteredAlerts.length === 0) {
+        metricAlertsList.innerHTML = `
+            <p>Nenhum alerta encontrado.</p>
+        `;
+        return;
+    }
+
+    filteredAlerts.slice(0, 5).forEach(alert => {
+        const div =
+            document.createElement('div');
+
+        div.classList.add('metric-alert-item');
+
+        div.innerHTML = `
+            <strong>${alert.status}</strong>
+            <p>Valor: ${Number(alert.value).toFixed(2)}%</p>
+            <p>Servidor: ${alert.server_name || '-'}</p>
+            <p>${new Date(alert.raised_at).toLocaleString()}</p>
+        `;
+
+        metricAlertsList.appendChild(div);
+    });
+}
+
+function renderMetricDetailChart(type) {
+    const config = metricConfig[type];
+
+    const canvas =
+        document.getElementById('metricDetailChart');
+
+    if (!canvas) return;
+
+    const ctx =
+        canvas.getContext('2d');
+
+    if (metricDetailChart) {
+        metricDetailChart.destroy();
+    }
+
+    let labels = [];
+    let values = [];
+
+    if (type === 'disk') {
+        labels = ['Atual'];
+        values = [
+            Number(lastMetricsData.disk_usage || 0)
+        ];
+    } else {
+        labels = lastHistoryData.labels || [];
+        values = lastHistoryData[config.key] || [];
+    }
+
+    metricDetailChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [{
+                label: `${config.title} %`,
+                data: values,
+                borderWidth: 2,
+                tension: 0.4,
+                fill: false
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    display: true
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100
+                }
+            }
+        }
+    });
+}
+
+function updateMetricModal(type) {
+    const config = metricConfig[type];
+
+    if (!config) return;
+
+    const current =
+        Number(lastMetricsData[config.valueKey] || 0);
+
+    const values =
+        getMetricValues(type);
+
+    const stats =
+        calculateMetricStats(values);
+
+    metricModalTitle.innerText =
+        config.title;
+
+    metricModalCurrent.innerText =
+        `${current.toFixed(2)}%`;
+
+    metricAverage.innerText =
+        `${stats.average.toFixed(2)}%`;
+
+    metricPeak.innerText =
+        `${stats.peak.toFixed(2)}%`;
+
+    metricMin.innerText =
+        `${stats.min.toFixed(2)}%`;
+
+    renderMetricDetailChart(type);
+    renderMetricAlerts(type);
+}
+
+function openMetricModal(type) {
+    currentMetricType = type;
+
+    updateMetricModal(type);
+
+    metricModal.classList.remove('hidden');
+}
+
+function closeMetricModal() {
+    metricModal.classList.add('hidden');
+    currentMetricType = null;
+}
+
+if (metricModal) {
+    metricModal.addEventListener('click', event => {
+        if (event.target === metricModal) {
+            closeMetricModal();
+        }
+    });
+}
+
 async function loadMetrics() {
     try {
         const selectedServer = getSelectedDashboardServer();
@@ -169,6 +402,8 @@ async function loadMetrics() {
 
         const data = await response.json();
 
+        lastMetricsData = data;
+
         cpuElement.innerText = data.cpu_usage + '%';
         memoryElement.innerText = data.memory_usage + '%';
         diskElement.innerText = data.disk_usage + '%';
@@ -179,6 +414,10 @@ async function loadMetrics() {
 
         hostnameElement.innerText = data.hostname;
         platformElement.innerText = data.platform;
+
+        if (currentMetricType) {
+            updateMetricModal(currentMetricType);
+        }
 
     } catch (error) {
         console.error('Erro métricas:', error);
@@ -216,6 +455,8 @@ async function loadHistory() {
 
         const data = await response.json();
 
+        lastHistoryData = data;
+
         cpuChart.data.labels = data.labels;
         cpuChart.data.datasets[0].data = data.cpu;
 
@@ -224,6 +465,10 @@ async function loadHistory() {
 
         cpuChart.update();
         memoryChart.update();
+
+        if (currentMetricType) {
+            updateMetricModal(currentMetricType);
+        }
 
     } catch (error) {
         console.error('Erro histórico:', error);
@@ -244,6 +489,8 @@ async function loadAlerts() {
         );
 
         const alerts = await response.json();
+
+        lastAlertsData = alerts;
 
         alertsList.innerHTML = '';
 
@@ -271,6 +518,10 @@ async function loadAlerts() {
 
             alertsList.appendChild(div);
         });
+
+        if (currentMetricType) {
+            renderMetricAlerts(currentMetricType);
+        }
 
     } catch (error) {
         console.error('Erro alertas:', error);
@@ -549,6 +800,13 @@ socket.on('metrics-update', data => {
     memoryBar.style.width = data.memory + '%';
     diskBar.style.width = data.disk + '%';
 
+    lastMetricsData = {
+        ...lastMetricsData,
+        cpu_usage: data.cpu,
+        memory_usage: data.memory,
+        disk_usage: data.disk
+    };
+
     const now = new Date().toLocaleTimeString();
 
     cpuChart.data.labels.push(now);
@@ -567,8 +825,18 @@ socket.on('metrics-update', data => {
         memoryChart.data.datasets[0].data.shift();
     }
 
+    lastHistoryData = {
+        labels: cpuChart.data.labels,
+        cpu: cpuChart.data.datasets[0].data,
+        memory: memoryChart.data.datasets[0].data
+    };
+
     cpuChart.update();
     memoryChart.update();
+
+    if (currentMetricType) {
+        updateMetricModal(currentMetricType);
+    }
 
     loadAlerts();
 });

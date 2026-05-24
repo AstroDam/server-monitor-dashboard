@@ -26,17 +26,21 @@
         }
     </script>
 
-    <button id="mobile-menu-button" class="mobile-menu-button">
+    <button id="mobile-menu-button"
+        class="mobile-menu-button">
         ☰
     </button>
 
-    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+    <div id="sidebar-overlay"
+        class="sidebar-overlay"></div>
 
-    <aside class="sidebar" id="sidebar">
+    <aside class="sidebar"
+        id="sidebar">
 
         <h2>MONITOR</h2>
 
         <ul>
+
             <li class="menu-item active"
                 data-section="dashboard-section">
                 Dashboard
@@ -66,6 +70,7 @@
                 data-section="admin-section">
                 Administração
             </li>
+
         </ul>
 
     </aside>
@@ -75,20 +80,30 @@
         <header class="topbar">
 
             <div>
-                <h1>Monitoramento Enterprise</h1>
-                <p>Plataforma realtime</p>
+                <h1>
+                    Monitoramento Enterprise
+                </h1>
+
+                <p>
+                    Plataforma realtime
+                </p>
             </div>
 
             <div class="status">
+
                 <span class="online-dot"></span>
+
                 Sistema Online
 
                 <button onclick="logout()">
                     Logout
                 </button>
+
             </div>
 
         </header>
+
+        <!-- DASHBOARD -->
 
         <section id="dashboard-section"
             class="content-section active-section">
@@ -105,64 +120,131 @@
 
             <div class="cards">
 
-                <div class="card">
-                    <h3>CPU</h3>
+                <!-- CPU -->
+
+                <div class="card metric-card"
+                    onclick="openMetricModal('cpu')">
+
+                    <div class="metric-card-header">
+
+                        <h3>CPU</h3>
+
+                        <span class="metric-details">
+                            Ver detalhes →
+                        </span>
+
+                    </div>
+
                     <p id="cpu">0%</p>
 
                     <div class="progress-bar">
+
                         <div id="cpu-bar"
                             class="progress-fill"></div>
+
                     </div>
+
                 </div>
 
-                <div class="card">
-                    <h3>Memória</h3>
+                <!-- MEMORY -->
+
+                <div class="card metric-card"
+                    onclick="openMetricModal('memory')">
+
+                    <div class="metric-card-header">
+
+                        <h3>Memória</h3>
+
+                        <span class="metric-details">
+                            Ver detalhes →
+                        </span>
+
+                    </div>
+
                     <p id="memory">0%</p>
 
                     <div class="progress-bar">
+
                         <div id="memory-bar"
                             class="progress-fill"></div>
+
                     </div>
+
                 </div>
 
-                <div class="card">
-                    <h3>Disco</h3>
+                <!-- DISK -->
+
+                <div class="card metric-card"
+                    onclick="openMetricModal('disk')">
+
+                    <div class="metric-card-header">
+
+                        <h3>Disco</h3>
+
+                        <span class="metric-details">
+                            Ver detalhes →
+                        </span>
+
+                    </div>
+
                     <p id="disk">0%</p>
 
                     <div class="progress-bar">
+
                         <div id="disk-bar"
                             class="progress-fill"></div>
+
                     </div>
+
                 </div>
 
+                <!-- HOST -->
+
                 <div class="card">
+
                     <h3>Hostname</h3>
+
                     <p id="hostname">-</p>
+
                 </div>
 
+                <!-- PLATFORM -->
+
                 <div class="card">
+
                     <h3>Sistema</h3>
+
                     <p id="platform">-</p>
+
                 </div>
 
             </div>
 
             <div class="chart-card">
+
                 <h2>CPU Realtime</h2>
+
                 <canvas id="cpuChart"></canvas>
+
             </div>
 
         </section>
 
+        <!-- SERVERS -->
+
         <section id="servers-section"
             class="content-section">
 
-            <h2 class="section-title">Servidores</h2>
+            <h2 class="section-title">
+                Servidores
+            </h2>
 
             <div id="servers-grid"
                 class="servers-grid"></div>
 
         </section>
+
+        <!-- METRICS -->
 
         <section id="metrics-section"
             class="content-section">
@@ -174,19 +256,43 @@
                 <div class="filters">
 
                     <select id="server-filter">
+
                         <option value="all">
                             Todos os servidores
                         </option>
+
                     </select>
 
                     <select id="period-filter">
-                        <option value="15m">Últimos 15m</option>
-                        <option value="1h">Última 1h</option>
-                        <option value="6h">Últimas 6h</option>
-                        <option value="24h">Últimas 24h</option>
-                        <option value="7d">Últimos 7 dias</option>
-                        <option value="30d">Últimos 30 dias</option>
-                        <option value="custom">Personalizado</option>
+
+                        <option value="15m">
+                            Últimos 15m
+                        </option>
+
+                        <option value="1h">
+                            Última 1h
+                        </option>
+
+                        <option value="6h">
+                            Últimas 6h
+                        </option>
+
+                        <option value="24h">
+                            Últimas 24h
+                        </option>
+
+                        <option value="7d">
+                            Últimos 7 dias
+                        </option>
+
+                        <option value="30d">
+                            Últimos 30 dias
+                        </option>
+
+                        <option value="custom">
+                            Personalizado
+                        </option>
+
                     </select>
 
                     <div id="custom-filter"
@@ -209,28 +315,39 @@
             </div>
 
             <div class="chart-card">
+
                 <h2>Memória</h2>
+
                 <canvas id="memoryChart"></canvas>
+
             </div>
 
         </section>
+
+        <!-- ALERTS -->
 
         <section id="alerts-section"
             class="content-section">
 
             <div class="section-header">
+
                 <h2>Alertas</h2>
 
                 <select id="alert-server-filter">
+
                     <option value="all">
                         Todos os servidores
                     </option>
+
                 </select>
+
             </div>
 
             <div id="alerts-list"></div>
 
         </section>
+
+        <!-- LOGS -->
 
         <section id="logs-section"
             class="content-section">
@@ -242,6 +359,8 @@
             <div id="logs-container"></div>
 
         </section>
+
+        <!-- ADMIN -->
 
         <section id="admin-section"
             class="content-section">
@@ -266,12 +385,15 @@
                             required>
 
                         <select id="alert-rule-server">
+
                             <option value="all">
                                 Todos os servidores
                             </option>
+
                         </select>
 
                         <select id="alert-rule-metric">
+
                             <option value="cpu_usage">
                                 CPU
                             </option>
@@ -283,9 +405,11 @@
                             <option value="disk_usage">
                                 Disco
                             </option>
+
                         </select>
 
                         <select id="alert-rule-operator">
+
                             <option value=">">
                                 maior que >
                             </option>
@@ -301,6 +425,7 @@
                             <option value="<=">
                                 menor ou igual <=
                             </option>
+
                         </select>
 
                         <input type="number"
@@ -336,6 +461,92 @@
         </section>
 
     </main>
+
+    <!-- METRIC MODAL -->
+
+    <div id="metric-modal"
+        class="metric-modal hidden">
+
+        <div class="metric-modal-content">
+
+            <button class="metric-modal-close"
+                onclick="closeMetricModal()">
+
+                ✕
+
+            </button>
+
+            <div class="metric-modal-header">
+
+                <h2 id="metric-modal-title">
+                    CPU
+                </h2>
+
+                <span id="metric-modal-current">
+                    0%
+                </span>
+
+            </div>
+
+            <div class="metric-stats">
+
+                <div class="metric-stat-card">
+
+                    <h4>Média</h4>
+
+                    <p id="metric-average">
+                        0%
+                    </p>
+
+                </div>
+
+                <div class="metric-stat-card">
+
+                    <h4>Pico</h4>
+
+                    <p id="metric-peak">
+                        0%
+                    </p>
+
+                </div>
+
+                <div class="metric-stat-card">
+
+                    <h4>Mínimo</h4>
+
+                    <p id="metric-min">
+                        0%
+                    </p>
+
+                </div>
+
+            </div>
+
+            <div class="chart-card modal-chart">
+
+                <canvas id="metricDetailChart"></canvas>
+
+            </div>
+
+            <div class="metric-alerts">
+
+                <h3>
+                    Últimos Alertas
+                </h3>
+
+                <div id="metric-alerts-list">
+
+                    <p>
+                        Nenhum alerta encontrado.
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
 
     <script src="script.js"></script>
 
