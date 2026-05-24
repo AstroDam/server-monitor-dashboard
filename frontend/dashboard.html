@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Monitor Dashboard</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+
+<body>
+
+    <script>
+        const token = localStorage.getItem('token');
+
+        if (!token) {
+            window.location.href = 'login.html';
+        }
+    </script>
+
+    <aside class="sidebar">
+
+        <h2>MONITOR</h2>
+
+        <ul>
+            <li class="menu-item active" data-section="dashboard-section">
+                Dashboard
+            </li>
+
+            <li class="menu-item admin-only" data-section="servers-section">
+                Servidores
+            </li>
+
+            <li class="menu-item" data-section="metrics-section">
+                Métricas
+            </li>
+
+            <li class="menu-item" data-section="alerts-section">
+                Alertas
+            </li>
+
+            <li class="menu-item" data-section="logs-section">
+                Logs
+            </li>
+
+            <li class="menu-item admin-only" data-section="admin-section">
+                Administração
+            </li>
+        </ul>
+
+    </aside>
+
+    <main class="main-content">
+
+        <header class="topbar">
+
+            <div>
+                <h1>Monitoramento Enterprise</h1>
+                <p>Plataforma realtime</p>
+            </div>
+
+            <div class="status">
+                <span class="online-dot"></span>
+                Sistema Online
+
+                <button onclick="logout()">
+                    Logout
+                </button>
+            </div>
+
+        </header>
+
+        <section id="dashboard-section" class="content-section active-section">
+
+            <div class="filters dashboard-filters">
+
+                <select id="dashboard-server-filter">
+                    <option value="all">Todos os servidores</option>
+                </select>
+
+            </div>
+
+            <div class="cards">
+
+                <div class="card">
+                    <h3>CPU</h3>
+                    <p id="cpu">0%</p>
+
+                    <div class="progress-bar">
+                        <div id="cpu-bar" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Memória</h3>
+                    <p id="memory">0%</p>
+
+                    <div class="progress-bar">
+                        <div id="memory-bar" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Disco</h3>
+                    <p id="disk">0%</p>
+
+                    <div class="progress-bar">
+                        <div id="disk-bar" class="progress-fill"></div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <h3>Hostname</h3>
+                    <p id="hostname">-</p>
+                </div>
+
+                <div class="card">
+                    <h3>Sistema</h3>
+                    <p id="platform">-</p>
+                </div>
+
+            </div>
+
+            <div class="chart-card">
+                <h2>CPU Realtime</h2>
+                <canvas id="cpuChart"></canvas>
+            </div>
+
+        </section>
+
+        <section id="servers-section" class="content-section">
+
+            <h2>Servidores</h2>
+
+            <div id="servers-grid" class="servers-grid"></div>
+
+        </section>
+
+        <section id="metrics-section" class="content-section">
+
+            <div class="section-header">
+
+                <h2>Métricas</h2>
+
+                <div class="filters">
+
+                    <select id="server-filter">
+                        <option value="all">Todos os servidores</option>
+                    </select>
+
+                    <select id="period-filter">
+                        <option value="15m">Últimos 15m</option>
+                        <option value="1h">Última 1h</option>
+                        <option value="6h">Últimas 6h</option>
+                        <option value="24h">Últimas 24h</option>
+                        <option value="7d">Últimos 7 dias</option>
+                        <option value="30d">Últimos 30 dias</option>
+                        <option value="custom">Personalizado</option>
+                    </select>
+
+                    <div id="custom-filter" class="custom-filter hidden">
+
+                        <input type="datetime-local" id="start-date">
+
+                        <input type="datetime-local" id="end-date">
+
+                        <button id="apply-custom-filter">
+                            Aplicar
+                        </button>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="chart-card">
+                <h2>Memória</h2>
+                <canvas id="memoryChart"></canvas>
+            </div>
+
+        </section>
+
+        <section id="alerts-section" class="content-section">
+
+            <div class="section-header">
+                <h2>Alertas</h2>
+
+                <select id="alert-server-filter">
+                    <option value="all">Todos os servidores</option>
+                </select>
+            </div>
+
+            <div id="alerts-list"></div>
+
+        </section>
+
+        <section id="logs-section" class="content-section">
+
+            <h2>Logs Realtime</h2>
+
+            <div id="logs-container"></div>
+
+        </section>
+
+        <section id="admin-section" class="content-section">
+
+            <h2>
+                Administração
+            </h2>
+
+            <div class="admin-grid">
+
+                <div class="card">
+
+                    <h3>
+                        Nova Regra de Alerta
+                    </h3>
+
+                    <form id="alert-rule-form">
+
+                        <input type="text" id="alert-rule-name" placeholder="Nome da regra" required>
+
+                        <select id="alert-rule-server">
+                            <option value="all">
+                                Todos os servidores
+                            </option>
+                        </select>
+
+                        <select id="alert-rule-metric">
+
+                            <option value="cpu_usage">
+                                CPU
+                            </option>
+
+                            <option value="memory_usage">
+                                Memória
+                            </option>
+
+                            <option value="disk_usage">
+                                Disco
+                            </option>
+
+                        </select>
+
+                        <select id="alert-rule-operator">
+
+                            <option value=">">
+                                maior que >
+                            </option>
+
+                            <option value=">=">
+                                maior ou igual >=
+                            </option>
+
+                            <option value="<">
+                                menor que < </option>
+
+                            <option value="<=">
+                                menor ou igual <= </option>
+
+                        </select>
+
+                        <input type="number" id="alert-rule-threshold" placeholder="Limite Ex: 85" required>
+
+                        <input type="number" id="alert-rule-duration" placeholder="Duração em segundos" value="0">
+
+                        <button type="submit">
+                            Criar Regra
+                        </button>
+
+                    </form>
+
+                </div>
+
+                <div class="card">
+
+                    <h3>
+                        Regras Cadastradas
+                    </h3>
+
+                    <div id="alert-rules-list">
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>

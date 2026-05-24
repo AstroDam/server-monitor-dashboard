@@ -1,0 +1,51 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: monitor_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  backend:
+    build: ./backend
+    container_name: monitor_backend
+    restart: always
+    depends_on:
+      - postgres
+    ports:
+      - "3000:3000"
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      DB_NAME: ${POSTGRES_DB}
+
+  frontend:
+    build: ./frontend
+    container_name: monitor_frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"
+
+  agent:
+    build: ./agent
+    container_name: monitor_agent
+    hostname: monitor_agent
+    restart: always
+    depends_on:
+      - backend
+    environment:
+      API_BASE: http://backend:3000/metrics
+
+volumes:
+  postgres_data:

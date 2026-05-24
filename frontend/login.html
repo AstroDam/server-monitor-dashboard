@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Login</title>
+
+    <style>
+        * {
+
+            margin: 0;
+
+            padding: 0;
+
+            box-sizing: border-box;
+
+            font-family: Arial, sans-serif;
+
+        }
+
+        body {
+
+            height: 100vh;
+
+            display: flex;
+
+            justify-content: center;
+
+            align-items: center;
+
+            background:
+                linear-gradient(135deg,
+                    #020617,
+                    #0f172a);
+
+        }
+
+        .login-container {
+
+            width: 400px;
+
+            background: #0f172a;
+
+            padding: 40px;
+
+            border-radius: 20px;
+
+            border: 1px solid #1e293b;
+
+            box-shadow:
+                0 0 40px rgba(0,
+                    0,
+                    0,
+                    0.4);
+
+        }
+
+        h1 {
+
+            color: #38bdf8;
+
+            margin-bottom: 10px;
+
+            font-size: 38px;
+
+        }
+
+        p {
+
+            color: #94a3b8;
+
+            margin-bottom: 30px;
+
+        }
+
+        input {
+
+            width: 100%;
+
+            padding: 16px;
+
+            margin-bottom: 20px;
+
+            border-radius: 12px;
+
+            border: 1px solid #334155;
+
+            background: #020617;
+
+            color: white;
+
+            font-size: 16px;
+
+        }
+
+        button {
+
+            width: 100%;
+
+            padding: 16px;
+
+            border: none;
+
+            border-radius: 12px;
+
+            background: #38bdf8;
+
+            color: white;
+
+            font-size: 16px;
+
+            font-weight: bold;
+
+            cursor: pointer;
+
+            transition: 0.3s;
+
+        }
+
+        button:hover {
+
+            opacity: 0.8;
+
+        }
+
+        #error {
+
+            color: #ef4444;
+
+            margin-top: 20px;
+
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <div class="login-container">
+
+        <h1>
+            MONITOR
+        </h1>
+
+        <p>
+            Faça login para acessar o dashboard
+        </p>
+
+        <input type="text" id="username" placeholder="Usuário">
+
+        <input type="password" id="password" placeholder="Senha">
+
+        <button onclick="login()">
+
+            Entrar
+
+        </button>
+
+        <p id="error"></p>
+
+    </div>
+
+    <script>
+
+        async function login() {
+
+            const username =
+                document.getElementById(
+                    'username'
+                ).value;
+
+            const password =
+                document.getElementById(
+                    'password'
+                ).value;
+
+            try {
+
+                const response =
+                    await fetch(
+
+                        'http://localhost:3000/auth/login',
+
+                        {
+
+                            method: 'POST',
+
+                            headers: {
+
+                                'Content-Type':
+                                    'application/json'
+
+                            },
+
+                            body: JSON.stringify({
+
+                                username,
+
+                                password
+
+                            })
+
+                        }
+
+                    );
+
+                const data =
+                    await response.json();
+
+                if (data.token) {
+
+                    localStorage.setItem(
+
+                        'token',
+
+                        data.token
+
+                    );
+
+                    localStorage.setItem(
+
+                        'username',
+
+                        data.username
+
+                    );
+
+                    localStorage.setItem(
+
+                        'role',
+
+                        data.role
+
+                    );
+
+                    window.location.href =
+                        'dashboard.html';
+
+                } else {
+
+                    document.getElementById(
+                        'error'
+                    ).innerText =
+
+                        data.error;
+
+                }
+
+            } catch (error) {
+
+                document.getElementById(
+                    'error'
+                ).innerText =
+
+                    'Erro ao fazer login';
+
+            }
+
+        }
+
+    </script>
+
+</body>
+
+</html>
