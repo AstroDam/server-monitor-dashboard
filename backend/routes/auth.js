@@ -18,12 +18,12 @@ router.post('/login', async (req, res) => {
     try {
 
         const {
-
             username,
-
             password
-
         } = req.body;
+
+        const normalizedUsername =
+            username.trim().toLowerCase();
 
         const result =
             await pool.query(
@@ -34,11 +34,13 @@ router.post('/login', async (req, res) => {
 
                 FROM user_account
 
-                WHERE username = $1
+                WHERE LOWER(username) = $1
+
+                LIMIT 1
 
                 `,
 
-                [username]
+                [normalizedUsername]
 
             );
 
@@ -80,23 +82,35 @@ router.post('/login', async (req, res) => {
 
         }
 
+        await pool.query(
+
+            `
+
+            UPDATE user_account
+
+            SET last_login = now()
+
+            WHERE id = $1
+
+            `,
+
+            [user.id]
+
+        );
+
         const token =
             jwt.sign(
 
                 {
-
                     id: user.id,
-
+                    username: user.username,
                     role: user.role
-
                 },
 
                 SECRET,
 
                 {
-
                     expiresIn: '12h'
-
                 }
 
             );
