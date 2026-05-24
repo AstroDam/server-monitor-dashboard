@@ -675,3 +675,21 @@ body {
 .progress-bar {
     margin-top: auto;
 }
+
+@media (max-width: 768px) {
+
+    .sidebar {
+        padding-top: 90px;
+    }
+
+    .sidebar h2 {
+        font-size: 28px;
+        margin-bottom: 24px;
+    }
+
+    .mobile-menu-button {
+        top: 18px;
+        left: 18px;
+        z-index: 5000;
+    }
+}
