@@ -396,7 +396,7 @@ body {
 
 .admin-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
     gap: 20px;
     margin-top: 20px;
 }
@@ -406,7 +406,8 @@ body {
 }
 
 #alert-rule-form,
-#user-form {
+#user-form,
+#server-form {
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -415,7 +416,9 @@ body {
 #alert-rule-form input,
 #alert-rule-form select,
 #user-form input,
-#user-form select {
+#user-form select,
+#server-form input,
+#server-form select {
     padding: 12px;
     border-radius: 12px;
     border: 1px solid var(--border);
@@ -424,7 +427,8 @@ body {
 }
 
 #alert-rule-form button,
-#user-form button {
+#user-form button,
+#server-form button {
     padding: 12px;
     border: none;
     border-radius: 12px;
@@ -435,7 +439,8 @@ body {
 }
 
 .alert-rule-item,
-.user-item {
+.user-item,
+.admin-server-item {
     background: #0f172a;
     border-radius: 14px;
     padding: 16px;
@@ -444,19 +449,22 @@ body {
 }
 
 .alert-rule-item h4,
-.user-item h4 {
+.user-item h4,
+.admin-server-item h4 {
     color: var(--blue);
     margin-bottom: 8px;
 }
 
 .alert-rule-item p,
-.user-item p {
+.user-item p,
+.admin-server-item p {
     color: #cbd5e1;
     font-size: 14px;
     margin-bottom: 6px;
 }
 
-.user-actions {
+.user-actions,
+.admin-server-actions {
     display: flex;
     gap: 8px;
     flex-wrap: wrap;
@@ -472,6 +480,7 @@ body {
 }
 
 .user-actions button,
+.admin-server-actions button,
 .alert-rule-item button {
     padding: 9px 12px;
     border: none;
@@ -482,8 +491,34 @@ body {
     font-weight: bold;
 }
 
-.user-actions .save-role-button {
+.user-actions .save-role-button,
+.admin-server-actions .copy-token-button,
+.admin-server-actions .regenerate-token-button {
     background: var(--blue);
+}
+
+.agent-token-box {
+    margin-top: 10px;
+    background: #020617;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 10px;
+    color: #7dd3fc;
+    font-size: 12px;
+    word-break: break-all;
+    line-height: 1.4;
+}
+
+.agent-command-box {
+    margin-top: 10px;
+    background: #020617;
+    border: 1px dashed var(--blue);
+    border-radius: 12px;
+    padding: 10px;
+    color: #cbd5e1;
+    font-size: 12px;
+    word-break: break-all;
+    line-height: 1.4;
 }
 
 .metric-modal {
@@ -714,12 +749,14 @@ body {
         font-size: 28px;
     }
 
-    .user-actions {
+    .user-actions,
+    .admin-server-actions {
         flex-direction: column;
     }
 
     .user-actions select,
-    .user-actions button {
+    .user-actions button,
+    .admin-server-actions button {
         width: 100%;
     }
 }

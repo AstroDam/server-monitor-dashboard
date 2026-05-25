@@ -50,40 +50,34 @@ const userPassword = document.getElementById('user-password');
 const userRoleInput = document.getElementById('user-role');
 const usersList = document.getElementById('users-list');
 
+const serverForm = document.getElementById('server-form');
+const serverNameInput = document.getElementById('server-name');
+const serverHostnameInput = document.getElementById('server-hostname');
+const serverIpInput = document.getElementById('server-ip');
+const serverPlatformInput = document.getElementById('server-platform');
+const adminServersList = document.getElementById('admin-servers-list');
+
 const periodFilter = document.getElementById('period-filter');
 const customFilter = document.getElementById('custom-filter');
 const startDateInput = document.getElementById('start-date');
 const endDateInput = document.getElementById('end-date');
-const applyCustomFilterButton =
-    document.getElementById('apply-custom-filter');
+const applyCustomFilterButton = document.getElementById('apply-custom-filter');
 
 const serverFilter = document.getElementById('server-filter');
-const dashboardServerFilter =
-    document.getElementById('dashboard-server-filter');
-const alertServerFilter =
-    document.getElementById('alert-server-filter');
+const dashboardServerFilter = document.getElementById('dashboard-server-filter');
+const alertServerFilter = document.getElementById('alert-server-filter');
 
-const mobileMenuButton =
-    document.getElementById('mobile-menu-button');
-const sidebar =
-    document.getElementById('sidebar');
-const sidebarOverlay =
-    document.getElementById('sidebar-overlay');
+const mobileMenuButton = document.getElementById('mobile-menu-button');
+const sidebar = document.getElementById('sidebar');
+const sidebarOverlay = document.getElementById('sidebar-overlay');
 
-const metricModal =
-    document.getElementById('metric-modal');
-const metricModalTitle =
-    document.getElementById('metric-modal-title');
-const metricModalCurrent =
-    document.getElementById('metric-modal-current');
-const metricAverage =
-    document.getElementById('metric-average');
-const metricPeak =
-    document.getElementById('metric-peak');
-const metricMin =
-    document.getElementById('metric-min');
-const metricAlertsList =
-    document.getElementById('metric-alerts-list');
+const metricModal = document.getElementById('metric-modal');
+const metricModalTitle = document.getElementById('metric-modal-title');
+const metricModalCurrent = document.getElementById('metric-modal-current');
+const metricAverage = document.getElementById('metric-average');
+const metricPeak = document.getElementById('metric-peak');
+const metricMin = document.getElementById('metric-min');
+const metricAlertsList = document.getElementById('metric-alerts-list');
 
 let metricDetailChart = null;
 let currentMetricType = null;
@@ -109,12 +103,14 @@ const metricConfig = {
         valueKey: 'cpu_usage',
         alertName: 'cpu_usage'
     },
+
     memory: {
         title: 'Memória',
         key: 'memory',
         valueKey: 'memory_usage',
         alertName: 'memory_usage'
     },
+
     disk: {
         title: 'Disco',
         key: 'disk',
@@ -127,6 +123,7 @@ const cpuChart = new Chart(
     document.getElementById('cpuChart'),
     {
         type: 'line',
+
         data: {
             labels: [],
             datasets: [{
@@ -137,6 +134,7 @@ const cpuChart = new Chart(
                 fill: false
             }]
         },
+
         options: {
             responsive: true,
             maintainAspectRatio: true,
@@ -159,6 +157,7 @@ const memoryChart = new Chart(
     document.getElementById('memoryChart'),
     {
         type: 'line',
+
         data: {
             labels: [],
             datasets: [{
@@ -169,6 +168,7 @@ const memoryChart = new Chart(
                 fill: false
             }]
         },
+
         options: {
             responsive: true,
             maintainAspectRatio: true,
@@ -237,7 +237,7 @@ function getMetricValues(type) {
     }
 
     return (lastHistoryData[config.key] || [])
-        .filter(v => v !== null && v !== undefined)
+        .filter(value => value !== null && value !== undefined)
         .map(Number);
 }
 
@@ -275,6 +275,7 @@ function renderMetricAlerts(type) {
     if (filteredAlerts.length === 0) {
         metricAlertsList.innerHTML =
             '<p>Nenhum alerta encontrado.</p>';
+
         return;
     }
 
@@ -297,8 +298,7 @@ function renderMetricAlerts(type) {
 function renderMetricDetailChart(type) {
     const config = metricConfig[type];
 
-    const canvas =
-        document.getElementById('metricDetailChart');
+    const canvas = document.getElementById('metricDetailChart');
 
     if (!canvas) return;
 
@@ -323,6 +323,7 @@ function renderMetricDetailChart(type) {
 
     metricDetailChart = new Chart(ctx, {
         type: 'line',
+
         data: {
             labels,
             datasets: [{
@@ -333,6 +334,7 @@ function renderMetricDetailChart(type) {
                 fill: false
             }]
         },
+
         options: {
             responsive: true,
             maintainAspectRatio: true,
@@ -495,6 +497,7 @@ async function loadAlerts() {
                     <p>Nenhum alerta encontrado.</p>
                 </div>
             `;
+
             return;
         }
 
@@ -611,7 +614,7 @@ async function createAlertRule(event) {
     event.preventDefault();
 
     try {
-        await fetch(
+        const response = await fetch(
             `${API_BASE}/metrics/alert-rules`,
             {
                 method: 'POST',
@@ -627,6 +630,13 @@ async function createAlertRule(event) {
             }
         );
 
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error || 'Erro ao criar regra');
+            return;
+        }
+
         alertRuleForm.reset();
 
         await loadAlertRules();
@@ -638,13 +648,20 @@ async function createAlertRule(event) {
 
 async function deleteAlertRule(id) {
     try {
-        await fetch(
+        const response = await fetch(
             `${API_BASE}/metrics/alert-rules/${id}`,
             {
                 method: 'DELETE',
                 headers: authHeaders
             }
         );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error || 'Erro ao remover regra');
+            return;
+        }
 
         await loadAlertRules();
 
@@ -673,6 +690,7 @@ async function loadUsers() {
         if (users.length === 0) {
             usersList.innerHTML =
                 '<p>Nenhum usuário encontrado.</p>';
+
             return;
         }
 
@@ -915,6 +933,184 @@ async function loadServers() {
     }
 }
 
+async function loadAdminServers() {
+    try {
+        if (userRole !== 'admin' || !adminServersList) {
+            return;
+        }
+
+        const response = await fetch(
+            `${API_BASE}/metrics/servers`,
+            {
+                headers: authHeaders
+            }
+        );
+
+        const servers = await response.json();
+
+        adminServersList.innerHTML = '';
+
+        if (servers.length === 0) {
+            adminServersList.innerHTML =
+                '<p>Nenhum servidor cadastrado.</p>';
+
+            return;
+        }
+
+        servers.forEach(server => {
+            const div = document.createElement('div');
+
+            div.classList.add('admin-server-item');
+
+            div.innerHTML = `
+                <h4>${server.name}</h4>
+
+                <p>Hostname: ${server.hostname}</p>
+                <p>Plataforma: ${server.platform || '-'}</p>
+                <p>IP: ${server.ip_address || '-'}</p>
+                <p>Status: ${server.online ? '🟢 Online' : '🔴 Offline'}</p>
+
+                <div class="agent-token-box">
+                    ${server.agent_token || '-'}
+                </div>
+
+                <div class="agent-command-box">
+                    AGENT_TOKEN=${server.agent_token || '-'} API_URL=http://${window.location.hostname}:3000
+                </div>
+
+                <div class="admin-server-actions">
+                    <button class="copy-token-button"
+                        onclick="copyAgentToken('${server.agent_token || ''}')">
+                        Copiar Token
+                    </button>
+
+                    <button class="regenerate-token-button"
+                        onclick="regenerateAgentToken('${server.id}')">
+                        Regenerar Token
+                    </button>
+
+                    <button onclick="deleteServer('${server.id}')">
+                        Remover
+                    </button>
+                </div>
+            `;
+
+            adminServersList.appendChild(div);
+        });
+
+    } catch (error) {
+        console.error('Erro admin servidores:', error);
+    }
+}
+
+async function createServer(event) {
+    event.preventDefault();
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/metrics/servers`,
+            {
+                method: 'POST',
+                headers: jsonHeaders,
+                body: JSON.stringify({
+                    name: serverNameInput.value,
+                    hostname: serverHostnameInput.value,
+                    ip_address: serverIpInput.value,
+                    platform: serverPlatformInput.value
+                })
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error || 'Erro ao criar servidor');
+            return;
+        }
+
+        serverForm.reset();
+
+        await loadServers();
+        await loadAdminServers();
+
+        alert('Servidor cadastrado com sucesso');
+
+    } catch (error) {
+        console.error('Erro criar servidor:', error);
+    }
+}
+
+async function deleteServer(id) {
+    const confirmDelete =
+        confirm('Deseja remover este servidor?');
+
+    if (!confirmDelete) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/metrics/servers/${id}`,
+            {
+                method: 'DELETE',
+                headers: authHeaders
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error || 'Erro ao remover servidor');
+            return;
+        }
+
+        await loadServers();
+        await loadAdminServers();
+
+    } catch (error) {
+        console.error('Erro remover servidor:', error);
+    }
+}
+
+async function regenerateAgentToken(id) {
+    const confirmReset =
+        confirm('Regenerar token do agent?');
+
+    if (!confirmReset) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/metrics/servers/${id}/regenerate-token`,
+            {
+                method: 'POST',
+                headers: authHeaders
+            }
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+            alert(data.error || 'Erro ao regenerar token');
+            return;
+        }
+
+        await loadAdminServers();
+
+        alert('Token regenerado');
+
+    } catch (error) {
+        console.error('Erro regenerar token:', error);
+    }
+}
+
+function copyAgentToken(token) {
+    navigator.clipboard.writeText(token);
+
+    alert('Token copiado');
+}
+
 async function refreshDashboard() {
     await loadServers();
     await loadMetrics();
@@ -923,6 +1119,7 @@ async function refreshDashboard() {
     await loadLogs();
     await loadAlertRules();
     await loadUsers();
+    await loadAdminServers();
 }
 
 refreshDashboard();
@@ -1065,6 +1262,10 @@ if (alertRuleForm) {
 
 if (userForm) {
     userForm.addEventListener('submit', createUser);
+}
+
+if (serverForm) {
+    serverForm.addEventListener('submit', createServer);
 }
 
 if (userRole !== 'admin') {
