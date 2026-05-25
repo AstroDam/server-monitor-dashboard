@@ -1,5 +1,7 @@
 const express = require('express');
 
+const crypto = require('crypto');
+
 const pool = require('../db');
 
 const authMiddleware =
@@ -238,6 +240,10 @@ async function evaluateAlertRules(serverId, hostname, metrics) {
 
 }
 
+// ===============================
+// MÉTRICAS LATEST
+// ===============================
+
 router.get('/latest', authMiddleware, async (req, res) => {
 
     try {
@@ -309,7 +315,7 @@ router.get('/latest', authMiddleware, async (req, res) => {
             const serverResult =
                 await pool.query(`
 
-                    SELECT hostname, name
+                    SELECT hostname, name, platform
                     FROM server
                     WHERE id = $1
                     LIMIT 1
@@ -320,6 +326,10 @@ router.get('/latest', authMiddleware, async (req, res) => {
                 serverResult.rows[0]?.hostname ||
                 serverResult.rows[0]?.name ||
                 'Servidor';
+
+            platform =
+                serverResult.rows[0]?.platform ||
+                'Linux';
 
         }
 
@@ -351,6 +361,10 @@ router.get('/latest', authMiddleware, async (req, res) => {
     }
 
 });
+
+// ===============================
+// HISTÓRICO
+// ===============================
 
 router.get('/history', authMiddleware, async (req, res) => {
 
@@ -493,6 +507,10 @@ router.get('/history', authMiddleware, async (req, res) => {
 
 });
 
+// ===============================
+// ALERTAS
+// ===============================
+
 router.get('/alerts', authMiddleware, async (req, res) => {
 
     try {
@@ -550,6 +568,10 @@ router.get('/alerts', authMiddleware, async (req, res) => {
 
 });
 
+// ===============================
+// LOGS
+// ===============================
+
 router.get('/logs', authMiddleware, async (req, res) => {
 
     try {
@@ -585,6 +607,10 @@ router.get('/logs', authMiddleware, async (req, res) => {
     }
 
 });
+
+// ===============================
+// SERVIDORES
+// ===============================
 
 router.get('/servers', authMiddleware, async (req, res) => {
 
@@ -649,47 +675,12 @@ router.get('/servers', authMiddleware, async (req, res) => {
 
 });
 
-router.get(
-    '/alert-rules',
-    authMiddleware,
-    adminOnly,
-    async (req, res) => {
-
-        try {
-
-            const result =
-                await pool.query(`
-
-                    SELECT
-                        ar.*,
-                        s.name AS server_name
-
-                    FROM alert_rule ar
-
-                    LEFT JOIN server s
-                        ON s.id = ar.server_id
-
-                    ORDER BY ar.created_at DESC
-
-                `);
-
-            res.json(result.rows);
-
-        } catch (error) {
-
-            console.error(error);
-
-            res.status(500).json({
-                error: 'Erro ao buscar regras'
-            });
-
-        }
-
-    }
-);
+// ===============================
+// CRIAR SERVIDOR
+// ===============================
 
 router.post(
-    '/alert-rules',
+    '/servers',
     authMiddleware,
     adminOnly,
     async (req, res) => {
@@ -698,61 +689,73 @@ router.post(
 
             const {
                 name,
-                server_id,
-                metric_name,
-                operator,
-                threshold,
-                duration_seconds
+                hostname,
+                ip_address,
+                platform
             } = req.body;
 
-            const normalizedServerId =
-                server_id === 'all' ||
-                server_id === ''
-                    ? null
-                    : server_id;
+            if (!name || !hostname) {
+
+                return res.status(400).json({
+                    error: 'Nome e hostname obrigatórios'
+                });
+
+            }
+
+            const exists =
+                await pool.query(`
+
+                    SELECT id
+                    FROM server
+                    WHERE hostname = $1
+                    LIMIT 1
+
+                `, [hostname]);
+
+            if (exists.rows.length > 0) {
+
+                return res.status(409).json({
+                    error: 'Servidor já cadastrado'
+                });
+
+            }
+
+            const agentToken =
+                crypto.randomBytes(32).toString('hex');
 
             const result =
                 await pool.query(`
 
-                    INSERT INTO alert_rule (
+                    INSERT INTO server (
 
                         name,
-                        server_id,
-                        metric_name,
-                        operator,
-                        threshold,
-                        duration_seconds,
-                        channels,
-                        enabled,
-                        created_by
+                        hostname,
+                        ip_address,
+                        platform,
+                        agent_token
 
                     )
 
-                    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+                    VALUES ($1,$2,$3,$4,$5)
 
                     RETURNING *
 
                 `, [
 
                     name,
-                    normalizedServerId,
-                    metric_name,
-                    operator,
-                    Number(threshold),
-                    Number(duration_seconds) || 0,
-                    ['dashboard'],
-                    true,
-                    req.user.id
+                    hostname,
+                    ip_address || null,
+                    platform || 'Linux',
+                    agentToken
 
                 ]);
 
             await createLog({
 
-                level:
-                    'INFO',
+                level: 'INFO',
 
                 message:
-                    `Regra de alerta criada: ${name}`
+                    `Servidor cadastrado: ${name}`
 
             });
 
@@ -763,7 +766,7 @@ router.post(
             console.error(error);
 
             res.status(500).json({
-                error: 'Erro ao criar regra'
+                error: 'Erro ao cadastrar servidor'
             });
 
         }
@@ -771,8 +774,12 @@ router.post(
     }
 );
 
+// ===============================
+// REMOVER SERVIDOR
+// ===============================
+
 router.delete(
-    '/alert-rules/:id',
+    '/servers/:id',
     authMiddleware,
     adminOnly,
     async (req, res) => {
@@ -785,19 +792,17 @@ router.delete(
 
             await pool.query(`
 
-                DELETE FROM alert_rule
-
+                DELETE FROM server
                 WHERE id = $1
 
             `, [id]);
 
             await createLog({
 
-                level:
-                    'INFO',
+                level: 'WARN',
 
                 message:
-                    `Regra de alerta removida`
+                    `Servidor removido`
 
             });
 
@@ -810,7 +815,7 @@ router.delete(
             console.error(error);
 
             res.status(500).json({
-                error: 'Erro ao remover regra'
+                error: 'Erro ao remover servidor'
             });
 
         }
@@ -818,253 +823,71 @@ router.delete(
     }
 );
 
-router.post('/ingest', async (req, res) => {
+// ===============================
+// REGERAR TOKEN
+// ===============================
 
-    try {
+router.post(
+    '/servers/:id/regenerate-token',
+    authMiddleware,
+    adminOnly,
+    async (req, res) => {
 
-        const authHeader =
-            req.headers.authorization;
+        try {
 
-        if (!authHeader) {
+            const {
+                id
+            } = req.params;
 
-            return res.status(401).json({
-                error: 'Token do agent não enviado'
-            });
+            const newToken =
+                crypto.randomBytes(32).toString('hex');
 
-        }
+            const result =
+                await pool.query(`
 
-        const receivedToken =
-            authHeader.split(' ')[1];
+                    UPDATE server
 
-        const {
-            hostname,
-            cpu,
-            memory,
-            disk
-        } = req.body;
+                    SET agent_token = $1
 
-        const serverResult =
-            await pool.query(`
+                    WHERE id = $2
 
-                SELECT id, agent_token
-                FROM server
-                WHERE hostname = $1
-                LIMIT 1
+                    RETURNING *
 
-            `, [hostname]);
+                `, [
+                    newToken,
+                    id
+                ]);
 
-        if (
-            serverResult.rows.length === 0
-        ) {
+            if (result.rows.length === 0) {
 
-            return res.status(403).json({
-                error: 'Servidor não cadastrado'
-            });
+                return res.status(404).json({
+                    error: 'Servidor não encontrado'
+                });
 
-        }
-
-        const server =
-            serverResult.rows[0];
-
-        if (
-            server.agent_token !==
-            receivedToken
-        ) {
-
-            return res.status(403).json({
-                error: 'Token do agent inválido'
-            });
-
-        }
-
-        const serverId =
-            server.id;
-
-        const metrics = [
-
-            {
-                metric_name: 'cpu_usage',
-                value: cpu,
-                unit: '%'
-            },
-
-            {
-                metric_name: 'memory_usage',
-                value: memory,
-                unit: '%'
-            },
-
-            {
-                metric_name: 'disk_usage',
-                value: disk,
-                unit: '%'
             }
 
-        ];
+            await createLog({
 
-        for (const metric of metrics) {
+                level: 'INFO',
 
-            await pool.query(`
+                message:
+                    `Token de servidor regenerado`
 
-                INSERT INTO metric_sample (
-                    server_id,
-                    metric_name,
-                    value,
-                    unit
-                )
-                VALUES ($1,$2,$3,$4)
+            });
 
-            `, [
-                serverId,
-                metric.metric_name,
-                metric.value,
-                metric.unit
-            ]);
+            res.json(result.rows[0]);
+
+        } catch (error) {
+
+            console.error(error);
+
+            res.status(500).json({
+                error: 'Erro ao regenerar token'
+            });
 
         }
-
-        await createLog({
-
-            server_id:
-                serverId,
-
-            level:
-                'INFO',
-
-            message:
-                `Métricas recebidas de ${hostname}`
-
-        });
-
-        await evaluateAlertRules(
-            serverId,
-            hostname,
-            metrics
-        );
-
-        if (global.io) {
-
-            global.io.emit(
-                'metrics-update',
-                {
-                    server_id: serverId,
-                    hostname,
-                    cpu,
-                    memory,
-                    disk
-                }
-            );
-
-        }
-
-        res.json({
-            success: true
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro ingest'
-        });
 
     }
-
-});
-
-router.post('/heartbeat', async (req, res) => {
-
-    try {
-
-        const authHeader =
-            req.headers.authorization;
-
-        if (!authHeader) {
-
-            return res.status(401).json({
-                error: 'Token do agent não enviado'
-            });
-
-        }
-
-        const receivedToken =
-            authHeader.split(' ')[1];
-
-        const {
-            hostname
-        } = req.body;
-
-        const serverResult =
-            await pool.query(`
-
-                SELECT id, agent_token
-                FROM server
-                WHERE hostname = $1
-                LIMIT 1
-
-            `, [hostname]);
-
-        if (
-            serverResult.rows.length === 0
-        ) {
-
-            return res.status(403).json({
-                error: 'Servidor não cadastrado'
-            });
-
-        }
-
-        const server =
-            serverResult.rows[0];
-
-        if (
-            server.agent_token !==
-            receivedToken
-        ) {
-
-            return res.status(403).json({
-                error: 'Token do agent inválido'
-            });
-
-        }
-
-        await pool.query(`
-
-            INSERT INTO server_heartbeat (
-                server_id
-            )
-            VALUES ($1)
-
-        `, [server.id]);
-
-        await createLog({
-
-            server_id:
-                server.id,
-
-            level:
-                'INFO',
-
-            message:
-                `Heartbeat recebido de ${hostname}`
-
-        });
-
-        res.json({
-            success: true
-        });
-
-    } catch (error) {
-
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro heartbeat'
-        });
-
-    }
-
-});
+);
 
 module.exports = router;
