@@ -1,18 +1,16 @@
 const express = require('express');
-
 const bcrypt = require('bcrypt');
-
 const pool = require('../db');
-
-const authMiddleware =
-    require('../middlewares/auth');
+const authMiddleware = require('../middlewares/auth');
 
 const router = express.Router();
 
+const VALID_ROLES = ['admin', 'operator', 'viewer'];
+
 function adminOnly(req, res, next) {
-    if (req.user.role !== 'admin') {
+    if (!req.user || req.user.role !== 'admin') {
         return res.status(403).json({
-            error: 'Acesso negado'
+            error: 'Acesso negado. Apenas administradores podem gerenciar usuários.'
         });
     }
 
@@ -22,8 +20,15 @@ function adminOnly(req, res, next) {
 router.use(authMiddleware);
 router.use(adminOnly);
 
-// LISTAR USUÁRIOS
+async function countAdmins() {
+    const result = await pool.query(
+        `SELECT COUNT(*)::int AS total FROM user_account WHERE role = 'admin'`
+    );
 
+    return result.rows[0].total;
+}
+
+// LISTAR USUÁRIOS
 router.get('/', async (req, res) => {
     try {
         const result = await pool.query(`
@@ -39,67 +44,66 @@ router.get('/', async (req, res) => {
         `);
 
         res.json(result.rows);
-
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro ao listar usuários'
-        });
+        console.error('Erro ao listar usuários:', error);
+        res.status(500).json({ error: 'Erro ao listar usuários' });
     }
 });
 
 // CRIAR USUÁRIO
-
 router.post('/', async (req, res) => {
     try {
-        const {
-            username,
-            email,
-            password,
-            role
-        } = req.body;
+        const { username, email, password, role } = req.body;
 
-        if (!username || !password || !role) {
+        if (!username || !password) {
             return res.status(400).json({
-                error: 'Usuário, senha e perfil são obrigatórios'
+                error: 'Usuário e senha são obrigatórios'
             });
         }
 
-        const normalizedUsername =
-            username.trim().toLowerCase();
+        const normalizedUsername = username.trim().toLowerCase();
+        const normalizedEmail = email ? email.trim().toLowerCase() : null;
+        const selectedRole = role || 'viewer';
 
-        const validRoles = [
-            'admin',
-            'operator',
-            'viewer'
-        ];
+        if (!normalizedUsername) {
+            return res.status(400).json({
+                error: 'Usuário inválido'
+            });
+        }
 
-        if (!validRoles.includes(role)) {
+        if (password.length < 6) {
+            return res.status(400).json({
+                error: 'A senha precisa ter pelo menos 6 caracteres'
+            });
+        }
+
+        if (!VALID_ROLES.includes(selectedRole)) {
             return res.status(400).json({
                 error: 'Perfil inválido'
             });
         }
 
-        const exists = await pool.query(`
+        const exists = await pool.query(
+            `
             SELECT id
             FROM user_account
             WHERE LOWER(username) = $1
+               OR ($2::text IS NOT NULL AND LOWER(email) = $2)
             LIMIT 1
-        `, [
-            normalizedUsername
-        ]);
+            `,
+            [normalizedUsername, normalizedEmail]
+        );
 
         if (exists.rows.length > 0) {
             return res.status(409).json({
-                error: 'Usuário já existe'
+                error: 'Usuário ou e-mail já cadastrado'
             });
         }
 
-        const passwordHash =
-            await bcrypt.hash(password, 10);
+        const passwordHash = await bcrypt.hash(password, 10);
 
-        const result = await pool.query(`
+        const result = await pool.query(
+            `
             INSERT INTO user_account (
                 username,
                 email,
@@ -114,43 +118,29 @@ router.post('/', async (req, res) => {
                 role,
                 created_at,
                 last_login
-        `, [
-            normalizedUsername,
-            email || null,
-            passwordHash,
-            role
-        ]);
+            `,
+            [
+                normalizedUsername,
+                normalizedEmail,
+                passwordHash,
+                selectedRole
+            ]
+        );
 
         res.status(201).json(result.rows[0]);
-
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro ao criar usuário'
-        });
+        console.error('Erro ao criar usuário:', error);
+        res.status(500).json({ error: 'Erro ao criar usuário' });
     }
 });
 
 // ALTERAR PERFIL
-
 router.put('/:id/role', async (req, res) => {
     try {
-        const {
-            id
-        } = req.params;
+        const { id } = req.params;
+        const { role } = req.body;
 
-        const {
-            role
-        } = req.body;
-
-        const validRoles = [
-            'admin',
-            'operator',
-            'viewer'
-        ];
-
-        if (!validRoles.includes(role)) {
+        if (!VALID_ROLES.includes(role)) {
             return res.status(400).json({
                 error: 'Perfil inválido'
             });
@@ -162,7 +152,36 @@ router.put('/:id/role', async (req, res) => {
             });
         }
 
-        const result = await pool.query(`
+        const userResult = await pool.query(
+            `
+            SELECT id, role
+            FROM user_account
+            WHERE id = $1
+            LIMIT 1
+            `,
+            [id]
+        );
+
+        if (userResult.rows.length === 0) {
+            return res.status(404).json({
+                error: 'Usuário não encontrado'
+            });
+        }
+
+        const targetUser = userResult.rows[0];
+
+        if (targetUser.role === 'admin' && role !== 'admin') {
+            const adminTotal = await countAdmins();
+
+            if (adminTotal <= 1) {
+                return res.status(400).json({
+                    error: 'Não é possível remover o último administrador'
+                });
+            }
+        }
+
+        const result = await pool.query(
+            `
             UPDATE user_account
             SET role = $1
             WHERE id = $2
@@ -173,35 +192,21 @@ router.put('/:id/role', async (req, res) => {
                 role,
                 created_at,
                 last_login
-        `, [
-            role,
-            id
-        ]);
-
-        if (result.rows.length === 0) {
-            return res.status(404).json({
-                error: 'Usuário não encontrado'
-            });
-        }
+            `,
+            [role, id]
+        );
 
         res.json(result.rows[0]);
-
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro ao alterar perfil'
-        });
+        console.error('Erro ao alterar perfil:', error);
+        res.status(500).json({ error: 'Erro ao alterar perfil' });
     }
 });
 
 // REMOVER USUÁRIO
-
 router.delete('/:id', async (req, res) => {
     try {
-        const {
-            id
-        } = req.params;
+        const { id } = req.params;
 
         if (id === req.user.id) {
             return res.status(400).json({
@@ -209,30 +214,46 @@ router.delete('/:id', async (req, res) => {
             });
         }
 
-        const result = await pool.query(`
-            DELETE FROM user_account
+        const userResult = await pool.query(
+            `
+            SELECT id, role
+            FROM user_account
             WHERE id = $1
-            RETURNING id
-        `, [
-            id
-        ]);
+            LIMIT 1
+            `,
+            [id]
+        );
 
-        if (result.rows.length === 0) {
+        if (userResult.rows.length === 0) {
             return res.status(404).json({
                 error: 'Usuário não encontrado'
             });
         }
 
+        const targetUser = userResult.rows[0];
+
+        if (targetUser.role === 'admin') {
+            const adminTotal = await countAdmins();
+
+            if (adminTotal <= 1) {
+                return res.status(400).json({
+                    error: 'Não é possível remover o último administrador'
+                });
+            }
+        }
+
+        await pool.query(
+            `DELETE FROM user_account WHERE id = $1`,
+            [id]
+        );
+
         res.json({
-            success: true
+            success: true,
+            message: 'Usuário removido com sucesso'
         });
-
     } catch (error) {
-        console.error(error);
-
-        res.status(500).json({
-            error: 'Erro ao remover usuário'
-        });
+        console.error('Erro ao remover usuário:', error);
+        res.status(500).json({ error: 'Erro ao remover usuário' });
     }
 });
 
