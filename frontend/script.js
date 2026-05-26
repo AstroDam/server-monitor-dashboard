@@ -688,51 +688,109 @@ async function loadUsers() {
         usersList.innerHTML = '';
 
         if (users.length === 0) {
-            usersList.innerHTML =
-                '<p>Nenhum usuário encontrado.</p>';
+            usersList.innerHTML = `
+                <div class="empty-state">
+                    Nenhum usuário encontrado.
+                </div>
+            `;
 
             return;
         }
 
         users.forEach(user => {
+
+            const roleClass =
+                user.role === 'admin'
+                    ? 'role-admin'
+                    : user.role === 'operator'
+                        ? 'role-operator'
+                        : 'role-viewer';
+
             const div = document.createElement('div');
 
-            div.classList.add('user-item');
+            div.classList.add('user-card');
 
             div.innerHTML = `
-                <h4>${user.username}</h4>
-                <p>E-mail: ${user.email || '-'}</p>
-                <p>Perfil atual: ${user.role}</p>
-                <p>Criado em: ${new Date(user.created_at).toLocaleString()}</p>
-                <p>Último login: ${
-                    user.last_login
-                        ? new Date(user.last_login).toLocaleString()
-                        : 'Nunca'
-                }</p>
 
-                <div class="user-actions">
-                    <select id="role-${user.id}">
-                        <option value="viewer" ${user.role === 'viewer' ? 'selected' : ''}>
-                            Viewer
-                        </option>
+                <div class="user-card-header">
 
-                        <option value="operator" ${user.role === 'operator' ? 'selected' : ''}>
-                            Operator
-                        </option>
+                    <div>
 
-                        <option value="admin" ${user.role === 'admin' ? 'selected' : ''}>
-                            Admin
-                        </option>
-                    </select>
+                        <h4>${user.username}</h4>
 
-                    <button class="save-role-button"
-                        onclick="updateUserRole('${user.id}')">
-                        Salvar perfil
-                    </button>
+                        <p class="user-email">
+                            ${user.email || 'Sem e-mail'}
+                        </p>
 
-                    <button onclick="deleteUser('${user.id}')">
-                        Remover
-                    </button>
+                    </div>
+
+                    <span class="role-badge ${roleClass}">
+                        ${user.role}
+                    </span>
+
+                </div>
+
+                <div class="user-card-body">
+
+                    <div class="user-meta">
+
+                        <div class="user-meta-item">
+                            <span>Criado em</span>
+
+                            <strong>
+                                ${new Date(user.created_at).toLocaleString()}
+                            </strong>
+                        </div>
+
+                        <div class="user-meta-item">
+                            <span>Último login</span>
+
+                            <strong>
+                                ${
+                                    user.last_login
+                                        ? new Date(user.last_login).toLocaleString()
+                                        : 'Nunca'
+                                }
+                            </strong>
+                        </div>
+
+                    </div>
+
+                    <div class="user-actions">
+
+                        <select id="role-${user.id}">
+                            <option value="viewer"
+                                ${user.role === 'viewer' ? 'selected' : ''}>
+                                Viewer
+                            </option>
+
+                            <option value="operator"
+                                ${user.role === 'operator' ? 'selected' : ''}>
+                                Operator
+                            </option>
+
+                            <option value="admin"
+                                ${user.role === 'admin' ? 'selected' : ''}>
+                                Admin
+                            </option>
+                        </select>
+
+                        <button
+                            class="save-role-button"
+                            onclick="updateUserRole('${user.id}')">
+
+                            Salvar
+                        </button>
+
+                        <button
+                            class="danger-button"
+                            onclick="deleteUser('${user.id}')">
+
+                            Remover
+                        </button>
+
+                    </div>
+
                 </div>
             `;
 
@@ -741,6 +799,12 @@ async function loadUsers() {
 
     } catch (error) {
         console.error('Erro usuários:', error);
+
+        usersList.innerHTML = `
+            <div class="empty-state">
+                Erro ao carregar usuários.
+            </div>
+        `;
     }
 }
 
