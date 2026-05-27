@@ -1,3 +1,6 @@
+const { sendTelegramAlert } =
+    require('../services/telegramService');
+
 const express = require('express');
 const crypto = require('crypto');
 
@@ -127,6 +130,14 @@ async function evaluateAlertRules(serverId, hostname, metrics) {
                     server_id: serverId,
                     level: 'WARN',
                     message: `Alerta disparado: ${rule.name} em ${hostname}. Valor: ${metric.value}${metric.unit || ''}`
+                });
+
+                await sendTelegramAlert({
+                    title: `Alerta disparado: ${rule.name}`,
+                    server: hostname,
+                    metric: rule.metric_name,
+                    value: `${metric.value}${metric.unit || ''}`,
+                    severity: 'critical'
                 });
 
                 if (global.io) {
