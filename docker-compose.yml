@@ -21,6 +21,8 @@ services:
       - postgres
     ports:
       - "3000:3000"
+    env_file:
+    - ./backend/.env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
