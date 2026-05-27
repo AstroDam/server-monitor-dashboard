@@ -1,5 +1,9 @@
 const pool = require('../db');
 
+const {
+    sendTelegramAlert
+} = require('./telegramService');
+
 async function checkAlerts(metrics, serverId) {
 
     try {
@@ -49,9 +53,53 @@ async function checkAlerts(metrics, serverId) {
 
                     break;
 
+                case '>=':
+
+                    triggered =
+                        metric.value >=
+                        rule.threshold;
+
+                    break;
+
+                case '<=':
+
+                    triggered =
+                        metric.value <=
+                        rule.threshold;
+
+                    break;
+
             }
 
             if (triggered) {
+
+                // evita alertas duplicados abertos
+
+                const existingAlert =
+                    await pool.query(`
+
+                        SELECT id
+
+                        FROM alert
+
+                        WHERE rule_id = $1
+                        AND status = 'open'
+
+                        LIMIT 1
+
+                    `, [
+
+                        rule.id
+
+                    ]);
+
+                if (
+                    existingAlert.rows.length > 0
+                ) {
+
+                    continue;
+
+                }
 
                 await pool.query(`
 
@@ -94,6 +142,27 @@ async function checkAlerts(metrics, serverId) {
                     metric.value
 
                 );
+
+                // TELEGRAM
+
+                await sendTelegramAlert({
+
+                    title:
+                        `Alerta de ${metric.metric_name}`,
+
+                    server:
+                        `Servidor ${serverId}`,
+
+                    metric:
+                        metric.metric_name,
+
+                    value:
+                        `${metric.value}${metric.unit}`,
+
+                    severity:
+                        'critical'
+
+                });
 
             }
 
