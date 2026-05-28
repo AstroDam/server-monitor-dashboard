@@ -1,7 +1,6 @@
 const express = require('express');
 const crypto = require('crypto');
 
-const pool = require('../db');
 const authMiddleware = require('../middlewares/auth');
 const createLog = require('../utils/logger');
 
