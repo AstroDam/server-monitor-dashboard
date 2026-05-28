@@ -1,5 +1,8 @@
 const express = require('express');
 
+const healthRoutes =
+    require('./routes/health');
+
 const cors = require('cors');
 
 const http = require('http');
@@ -41,6 +44,8 @@ app.use('/auth', authRoutes);
 app.use('/metrics', metricsRoutes);
 
 app.use('/users', usersRoutes);
+
+app.use('/health', healthRoutes);
 
 // SOCKET GLOBAL
 
