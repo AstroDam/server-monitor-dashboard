@@ -724,7 +724,13 @@ router.post('/ingest', async (req, res) => {
             ip_address,
             cpu,
             memory,
-            disk
+            disk,
+            uptime_seconds,
+            process_count,
+            top_cpu_process,
+            top_memory_process,
+            network_rx_sec,
+            network_tx_sec
         } = req.body;
 
         await pool.query(
@@ -758,8 +764,32 @@ router.post('/ingest', async (req, res) => {
                 metric_name: 'disk_usage',
                 value: disk,
                 unit: '%'
+            },
+            {
+                metric_name: 'system_uptime_seconds',
+                value: uptime_seconds,
+                unit: 's'
+            },
+            {
+                metric_name: 'process_count',
+                value: process_count,
+                unit: 'processes'
+            },
+            {
+                metric_name: 'network_rx_sec',
+                value: network_rx_sec,
+                unit: 'B/s'
+            },
+            {
+                metric_name: 'network_tx_sec',
+                value: network_tx_sec,
+                unit: 'B/s'
             }
-        ];
+        ].filter(metric =>
+            metric.value !== undefined &&
+            metric.value !== null &&
+            !Number.isNaN(Number(metric.value))
+        );
 
         for (const metric of metrics) {
             await pool.query(
@@ -781,6 +811,14 @@ router.post('/ingest', async (req, res) => {
             );
         }
 
+        if (top_cpu_process || top_memory_process) {
+            await createLog({
+                server_id: server.id,
+                level: 'INFO',
+                message: `Processos: CPU=${top_cpu_process || '-'} | MEM=${top_memory_process || '-'}`
+            });
+        }
+
         await evaluateAlertRules(
             server.id,
             hostname || server.hostname,
@@ -793,7 +831,13 @@ router.post('/ingest', async (req, res) => {
                 hostname: hostname || server.hostname,
                 cpu,
                 memory,
-                disk
+                disk,
+                uptime_seconds,
+                process_count,
+                network_rx_sec,
+                network_tx_sec,
+                top_cpu_process,
+                top_memory_process
             });
         }
 
@@ -807,6 +851,34 @@ router.post('/ingest', async (req, res) => {
             error: 'Erro ao receber métricas do agent'
         });
     }
+});
+
+await evaluateAlertRules(
+    server.id,
+    hostname || server.hostname,
+    metrics
+);
+
+if (global.io) {
+    global.io.emit('metrics-update', {
+        server_id: server.id,
+        hostname: hostname || server.hostname,
+        cpu,
+        memory,
+        disk
+    });
+}
+
+res.json({
+    success: true
+});
+    } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+        error: 'Erro ao receber métricas do agent'
+    });
+}
 });
 
 // ===============================

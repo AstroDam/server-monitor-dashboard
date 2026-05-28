@@ -88,33 +88,110 @@ async function requestWithRetry(method, url, payload, retries = 3) {
 }
 
 async function collectPayload() {
-    const cpu = await si.currentLoad();
-    const memory = await si.mem();
-    const diskList = await si.fsSize();
-    const osInfo = await si.osInfo();
+
+    const cpu =
+        await si.currentLoad();
+
+    const memory =
+        await si.mem();
+
+    const diskList =
+        await si.fsSize();
+
+    const networkStats =
+        await si.networkStats();
+
+    const processes =
+        await si.processes();
+
+    const osInfo =
+        await si.osInfo();
+
+    const time =
+        await si.time();
 
     const mainDisk =
-        diskList.find(disk => disk.mount === '/') ||
-        diskList[0];
+        diskList.find(
+            disk => disk.mount === '/'
+        ) || diskList[0];
+
+    const network =
+        networkStats[0] || {};
+
+    const processList =
+        processes.list || [];
+
+    const topCpuProcess =
+        [...processList]
+            .sort((a, b) => b.cpu - a.cpu)[0];
+
+    const topMemoryProcess =
+        [...processList]
+            .sort((a, b) => b.memRss - a.memRss)[0];
 
     return {
-        hostname: osInfo.hostname || os.hostname(),
-        platform: osInfo.platform || process.platform,
-        distro: osInfo.distro,
-        release: osInfo.release,
-        arch: osInfo.arch,
-        ip_address: getPrimaryIp(),
 
-        cpu: Number(cpu.currentLoad.toFixed(2)),
+        hostname:
+            osInfo.hostname || os.hostname(),
 
-        memory: Number(
-            ((memory.used / memory.total) * 100).toFixed(2)
-        ),
+        platform:
+            osInfo.platform || process.platform,
 
-        disk: Number(
-            (mainDisk?.use || 0).toFixed(2)
-        )
+        distro:
+            osInfo.distro,
+
+        release:
+            osInfo.release,
+
+        arch:
+            osInfo.arch,
+
+        ip_address:
+            getPrimaryIp(),
+
+        cpu:
+            Number(
+                cpu.currentLoad.toFixed(2)
+            ),
+
+        memory:
+            Number(
+                (
+                    (
+                        memory.used /
+                        memory.total
+                    ) * 100
+                ).toFixed(2)
+            ),
+
+        disk:
+            Number(
+                (mainDisk?.use || 0).toFixed(2)
+            ),
+
+        uptime_seconds:
+            time.uptime,
+
+        process_count:
+            processes.all,
+
+        network_rx_sec:
+            network.rx_sec || 0,
+
+        network_tx_sec:
+            network.tx_sec || 0,
+
+        top_cpu_process:
+            topCpuProcess
+                ? `${topCpuProcess.name} (${topCpuProcess.cpu.toFixed(2)}%)`
+                : null,
+
+        top_memory_process:
+            topMemoryProcess
+                ? `${topMemoryProcess.name}`
+                : null
     };
+
 }
 
 async function sendMetrics() {
