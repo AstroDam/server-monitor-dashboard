@@ -19,6 +19,8 @@ require('./services/metricsCollector');
 
 require('./services/retentionService');
 
+require('./services/incidentService');
+
 const app = express();
 
 const server =
