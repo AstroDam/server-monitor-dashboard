@@ -9,20 +9,29 @@ const AGENT_TOKEN =
     process.env.AGENT_TOKEN;
 
 const INTERVAL_MS =
-    Number(process.env.AGENT_INTERVAL_MS || 5000);
+    Number(process.env.AGENT_INTERVAL_MS || 10000);
+
+const REQUEST_TIMEOUT_MS =
+    Number(process.env.AGENT_REQUEST_TIMEOUT_MS || 8000);
+
+let consecutiveFailures = 0;
 
 if (!AGENT_TOKEN) {
-    console.error('ERRO: AGENT_TOKEN não definido.');
+    console.error('[AGENT FATAL] AGENT_TOKEN não definido.');
     process.exit(1);
 }
 
 const api = axios.create({
     baseURL: API_BASE,
-    timeout: 8000,
+    timeout: REQUEST_TIMEOUT_MS,
     headers: {
         Authorization: `Bearer ${AGENT_TOKEN}`
     }
 });
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function getPrimaryIp() {
     const interfaces = os.networkInterfaces();
@@ -38,6 +47,46 @@ function getPrimaryIp() {
     return null;
 }
 
+async function requestWithRetry(method, url, payload, retries = 3) {
+    let lastError = null;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            const response = await api[method](url, payload);
+
+            if (attempt > 1) {
+                console.log(`[AGENT] Recuperado após tentativa ${attempt}`);
+            }
+
+            consecutiveFailures = 0;
+
+            return response;
+        } catch (error) {
+            lastError = error;
+
+            const status = error.response?.status;
+            const message =
+                error.response?.data || error.message;
+
+            console.error(
+                `[AGENT RETRY] ${url} tentativa ${attempt}/${retries}`,
+                status || '',
+                message
+            );
+
+            if (status === 401 || status === 403) {
+                throw error;
+            }
+
+            await sleep(1000 * attempt);
+        }
+    }
+
+    consecutiveFailures++;
+
+    throw lastError;
+}
+
 async function collectPayload() {
     const cpu = await si.currentLoad();
     const memory = await si.mem();
@@ -49,8 +98,8 @@ async function collectPayload() {
         diskList[0];
 
     return {
-        hostname: osInfo.hostname,
-        platform: osInfo.platform,
+        hostname: osInfo.hostname || os.hostname(),
+        platform: osInfo.platform || process.platform,
         distro: osInfo.distro,
         release: osInfo.release,
         arch: osInfo.arch,
@@ -69,49 +118,67 @@ async function collectPayload() {
 }
 
 async function sendMetrics() {
-    try {
-        const payload = await collectPayload();
+    const payload = await collectPayload();
 
-        await api.post('/ingest', payload);
+    await requestWithRetry(
+        'post',
+        '/ingest',
+        payload
+    );
 
-        console.log(
-            `[METRICS] ${payload.hostname} | CPU ${payload.cpu}% | MEM ${payload.memory}% | DISK ${payload.disk}%`
-        );
-    } catch (error) {
-        console.error(
-            '[METRICS ERROR]',
-            error.response?.data || error.message
-        );
-    }
+    console.log(
+        `[METRICS] ${payload.hostname} | CPU ${payload.cpu}% | MEM ${payload.memory}% | DISK ${payload.disk}%`
+    );
 }
 
 async function sendHeartbeat() {
-    try {
-        const osInfo = await si.osInfo();
+    const osInfo = await si.osInfo();
 
-        await api.post('/heartbeat', {
-            hostname: osInfo.hostname,
-            platform: osInfo.platform,
-            ip_address: getPrimaryIp()
-        });
+    const payload = {
+        hostname: osInfo.hostname || os.hostname(),
+        platform: osInfo.platform || process.platform,
+        ip_address: getPrimaryIp()
+    };
 
-        console.log(`[HEARTBEAT] ${osInfo.hostname}`);
-    } catch (error) {
-        console.error(
-            '[HEARTBEAT ERROR]',
-            error.response?.data || error.message
-        );
-    }
+    await requestWithRetry(
+        'post',
+        '/heartbeat',
+        payload
+    );
+
+    console.log(`[HEARTBEAT] ${payload.hostname}`);
 }
 
 async function runAgent() {
-    await sendMetrics();
-    await sendHeartbeat();
+    try {
+        await sendMetrics();
+        await sendHeartbeat();
+
+        if (consecutiveFailures > 0) {
+            console.warn(
+                `[AGENT] Falhas consecutivas: ${consecutiveFailures}`
+            );
+        }
+    } catch (error) {
+        consecutiveFailures++;
+
+        console.error(
+            '[AGENT ERROR]',
+            error.response?.data || error.message
+        );
+
+        if (consecutiveFailures >= 5) {
+            console.error(
+                `[AGENT CRITICAL] ${consecutiveFailures} falhas consecutivas. Aguardando próxima tentativa.`
+            );
+        }
+    }
 }
 
 console.log('Monitor Agent iniciado');
 console.log(`API_BASE: ${API_BASE}`);
 console.log(`INTERVALO: ${INTERVAL_MS}ms`);
+console.log(`TIMEOUT: ${REQUEST_TIMEOUT_MS}ms`);
 
 runAgent();
 
