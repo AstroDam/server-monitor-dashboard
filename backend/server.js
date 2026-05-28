@@ -17,6 +17,8 @@ const usersRoutes =
 
 require('./services/metricsCollector');
 
+require('./services/retentionService');
+
 const app = express();
 
 const server =
