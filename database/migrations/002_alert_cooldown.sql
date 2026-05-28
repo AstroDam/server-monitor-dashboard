@@ -1,0 +1,11 @@
+ALTER TABLE alert_rule
+ADD COLUMN IF NOT EXISTS cooldown_seconds INTEGER DEFAULT 300;
+
+ALTER TABLE alert_rule
+ADD COLUMN IF NOT EXISTS severity TEXT DEFAULT 'warning';
+
+ALTER TABLE alert
+ADD COLUMN IF NOT EXISTS notification_sent BOOLEAN DEFAULT false;
+
+ALTER TABLE alert
+ADD COLUMN IF NOT EXISTS last_notification_at TIMESTAMP;
