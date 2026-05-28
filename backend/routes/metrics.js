@@ -919,32 +919,59 @@ router.post('/alert-rules', authMiddleware, adminOnly, async (req, res) => {
 });
 
 router.delete('/alert-rules/:id', authMiddleware, adminOnly, async (req, res) => {
+
     try {
+
         const { id } = req.params;
 
-        await pool.query(
-            `
+        // Remove alertas ligados à regra
+
+        await pool.query(`
+
+            DELETE FROM alert
+
+            WHERE rule_id = $1
+
+        `, [id]);
+
+        // Remove a regra
+
+        await pool.query(`
+
             DELETE FROM alert_rule
+
             WHERE id = $1
-            `,
-            [id]
-        );
+
+        `, [id]);
 
         await createLog({
+
             level: 'WARN',
-            message: 'Regra de alerta removida'
+
+            message:
+                'Regra de alerta removida'
+
         });
 
         res.json({
+
             success: true
+
         });
+
     } catch (error) {
+
         console.error(error);
 
         res.status(500).json({
-            error: 'Erro ao remover regra'
+
+            error:
+                'Erro ao remover regra'
+
         });
+
     }
+
 });
 
 module.exports = router;
