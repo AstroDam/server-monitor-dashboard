@@ -1,12 +1,13 @@
-const { sendTelegramAlert } =
-    require('../services/telegramService');
-
 const express = require('express');
 const crypto = require('crypto');
 
 const pool = require('../db');
 const authMiddleware = require('../middlewares/auth');
 const createLog = require('../utils/logger');
+
+const {
+    sendTelegramAlert
+} = require('../services/telegramService');
 
 const router = express.Router();
 
@@ -37,20 +38,15 @@ function compareMetric(value, operator, threshold) {
     switch (operator) {
         case '>':
             return value > threshold;
-
         case '<':
             return value < threshold;
-
         case '>=':
             return value >= threshold;
-
         case '<=':
             return value <= threshold;
-
         case '=':
         case '==':
             return value === threshold;
-
         default:
             return false;
     }
@@ -93,10 +89,7 @@ async function evaluateAlertRules(serverId, hostname, metrics) {
                   AND status = 'open'
                 LIMIT 1
                 `,
-                [
-                    rule.id,
-                    serverId
-                ]
+                [rule.id, serverId]
             );
 
             const hasOpenAlert =
@@ -155,10 +148,7 @@ async function evaluateAlertRules(serverId, hostname, metrics) {
                       AND server_id = $2
                       AND status = 'open'
                     `,
-                    [
-                        rule.id,
-                        serverId
-                    ]
+                    [rule.id, serverId]
                 );
 
                 await createLog({
@@ -174,7 +164,7 @@ async function evaluateAlertRules(serverId, hostname, metrics) {
 }
 
 // ===============================
-// MÉTRICAS LATEST
+// LATEST
 // ===============================
 
 router.get('/latest', authMiddleware, async (req, res) => {
@@ -266,12 +256,17 @@ router.get('/latest', authMiddleware, async (req, res) => {
 });
 
 // ===============================
-// HISTÓRICO
+// HISTORY
 // ===============================
 
 router.get('/history', authMiddleware, async (req, res) => {
     try {
-        const { period, start, end, server_id } = req.query;
+        const {
+            period,
+            start,
+            end,
+            server_id
+        } = req.query;
 
         const params = [];
         const conditions = [
@@ -311,7 +306,8 @@ router.get('/history', authMiddleware, async (req, res) => {
         const grouped = {};
 
         result.rows.forEach(row => {
-            const time = new Date(row.collected_at).toLocaleString();
+            const time =
+                new Date(row.collected_at).toLocaleString();
 
             if (!grouped[time]) {
                 grouped[time] = {
@@ -346,7 +342,7 @@ router.get('/history', authMiddleware, async (req, res) => {
 });
 
 // ===============================
-// ALERTAS
+// ALERTS
 // ===============================
 
 router.get('/alerts', authMiddleware, async (req, res) => {
@@ -414,34 +410,43 @@ router.get('/logs', authMiddleware, async (req, res) => {
 });
 
 // ===============================
-// SERVIDORES
+// SERVERS / UPTIME REAL
 // ===============================
 
 router.get('/servers', authMiddleware, async (req, res) => {
     try {
         const result = await pool.query(
             `
+            WITH heartbeat_stats AS (
+                SELECT
+                    server_id,
+                    MAX(received_at) AS last_heartbeat_at,
+                    COUNT(*) AS heartbeat_count
+                FROM server_heartbeat
+                GROUP BY server_id
+            ),
+
+            metric_stats AS (
+                SELECT
+                    server_id,
+                    MAX(collected_at) AS last_metric_at
+                FROM metric_sample
+                GROUP BY server_id
+            )
+
             SELECT
                 s.*,
 
-                (
-                    SELECT MAX(ms.collected_at)
-                    FROM metric_sample ms
-                    WHERE ms.server_id = s.id
-                ) AS last_metric_at,
+                hs.last_heartbeat_at,
+                ms.last_metric_at,
 
-                (
-                    SELECT MAX(sh.received_at)
-                    FROM server_heartbeat sh
-                    WHERE sh.server_id = s.id
-                ) AS last_heartbeat_at,
+                GREATEST(
+                    hs.last_heartbeat_at,
+                    ms.last_metric_at
+                ) AS last_seen,
 
                 CASE
-                    WHEN (
-                        SELECT MAX(sh.received_at)
-                        FROM server_heartbeat sh
-                        WHERE sh.server_id = s.id
-                    ) >= NOW() - INTERVAL '30 seconds'
+                    WHEN hs.last_heartbeat_at >= NOW() - INTERVAL '30 seconds'
                     THEN true
                     ELSE false
                 END AS online,
@@ -449,11 +454,22 @@ router.get('/servers', authMiddleware, async (req, res) => {
                 COALESCE(
                     ROUND(
                         (
-                            (
-                                SELECT COUNT(sh.id)::decimal
-                                FROM server_heartbeat sh
-                                WHERE sh.server_id = s.id
+                            hs.heartbeat_count::decimal
+                            /
+                            GREATEST(
+                                EXTRACT(EPOCH FROM (NOW() - s.created_at)) / 5,
+                                1
                             )
+                        ) * 100,
+                        2
+                    ),
+                    0
+                ) AS availability_percent,
+
+                COALESCE(
+                    ROUND(
+                        (
+                            hs.heartbeat_count::decimal
                             /
                             GREATEST(
                                 EXTRACT(EPOCH FROM (NOW() - s.created_at)) / 5,
@@ -466,6 +482,8 @@ router.get('/servers', authMiddleware, async (req, res) => {
                 ) AS uptime_percent
 
             FROM server s
+            LEFT JOIN heartbeat_stats hs ON hs.server_id = s.id
+            LEFT JOIN metric_stats ms ON ms.server_id = s.id
             ORDER BY s.created_at ASC
             `
         );
@@ -481,12 +499,17 @@ router.get('/servers', authMiddleware, async (req, res) => {
 });
 
 // ===============================
-// CRIAR SERVIDOR
+// CREATE SERVER
 // ===============================
 
 router.post('/servers', authMiddleware, adminOnly, async (req, res) => {
     try {
-        const { name, hostname, ip_address, platform } = req.body;
+        const {
+            name,
+            hostname,
+            ip_address,
+            platform
+        } = req.body;
 
         if (!name || !hostname) {
             return res.status(400).json({
@@ -553,12 +576,44 @@ router.post('/servers', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // ===============================
-// REMOVER SERVIDOR
+// DELETE SERVER
 // ===============================
 
 router.delete('/servers/:id', authMiddleware, adminOnly, async (req, res) => {
     try {
         const { id } = req.params;
+
+        await pool.query(
+            `
+            DELETE FROM alert
+            WHERE server_id = $1
+            `,
+            [id]
+        );
+
+        await pool.query(
+            `
+            DELETE FROM metric_sample
+            WHERE server_id = $1
+            `,
+            [id]
+        );
+
+        await pool.query(
+            `
+            DELETE FROM server_heartbeat
+            WHERE server_id = $1
+            `,
+            [id]
+        );
+
+        await pool.query(
+            `
+            DELETE FROM alert_rule
+            WHERE server_id = $1
+            `,
+            [id]
+        );
 
         await pool.query(
             `
@@ -586,7 +641,7 @@ router.delete('/servers/:id', authMiddleware, adminOnly, async (req, res) => {
 });
 
 // ===============================
-// REGERAR TOKEN
+// REGENERATE TOKEN
 // ===============================
 
 router.post('/servers/:id/regenerate-token', authMiddleware, adminOnly, async (req, res) => {
@@ -631,7 +686,7 @@ router.post('/servers/:id/regenerate-token', authMiddleware, adminOnly, async (r
 });
 
 // ===============================
-// INGESTÃO DO AGENT
+// AGENT INGEST
 // ===============================
 
 router.post('/ingest', async (req, res) => {
@@ -755,7 +810,7 @@ router.post('/ingest', async (req, res) => {
 });
 
 // ===============================
-// HEARTBEAT DO AGENT
+// AGENT HEARTBEAT
 // ===============================
 
 router.post('/heartbeat', async (req, res) => {
@@ -832,7 +887,7 @@ router.post('/heartbeat', async (req, res) => {
 });
 
 // ===============================
-// REGRAS DE ALERTA
+// ALERT RULES
 // ===============================
 
 router.get('/alert-rules', authMiddleware, adminOnly, async (req, res) => {
@@ -919,59 +974,40 @@ router.post('/alert-rules', authMiddleware, adminOnly, async (req, res) => {
 });
 
 router.delete('/alert-rules/:id', authMiddleware, adminOnly, async (req, res) => {
-
     try {
-
         const { id } = req.params;
 
-        // Remove alertas ligados à regra
-
-        await pool.query(`
-
+        await pool.query(
+            `
             DELETE FROM alert
-
             WHERE rule_id = $1
+            `,
+            [id]
+        );
 
-        `, [id]);
-
-        // Remove a regra
-
-        await pool.query(`
-
+        await pool.query(
+            `
             DELETE FROM alert_rule
-
             WHERE id = $1
-
-        `, [id]);
+            `,
+            [id]
+        );
 
         await createLog({
-
             level: 'WARN',
-
-            message:
-                'Regra de alerta removida'
-
+            message: 'Regra de alerta removida'
         });
 
         res.json({
-
             success: true
-
         });
-
     } catch (error) {
-
         console.error(error);
 
         res.status(500).json({
-
-            error:
-                'Erro ao remover regra'
-
+            error: 'Erro ao remover regra'
         });
-
     }
-
 });
 
 module.exports = router;
