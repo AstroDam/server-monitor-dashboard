@@ -15,6 +15,8 @@ const authRoutes =
 const metricsRoutes =
     require('./routes/metrics');
 
+const deployRoutes = require('./routes/deploy');
+
 const usersRoutes =
     require('./routes/users');
 
@@ -46,6 +48,8 @@ app.use('/metrics', metricsRoutes);
 app.use('/users', usersRoutes);
 
 app.use('/health', healthRoutes);
+
+app.use('/deploy', deployRoutes);
 
 // SOCKET GLOBAL
 
