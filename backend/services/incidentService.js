@@ -1,184 +1,126 @@
-const cron = require('node-cron');
+const express = require('express');
 
 const pool = require('../db');
 
-const {
-    correlateIncident
-} = require('./deployCorrelationService');
+const router = express.Router();
 
-async function checkIncidents() {
+// ===============================
+// LISTAR DEPLOYS
+// ===============================
 
+router.get('/', async (req, res) => {
     try {
+        const result = await pool.query(`
+            SELECT *
+            FROM deploy_registry
+            ORDER BY deployed_at DESC
+        `);
 
-        const servers =
-            await pool.query(`
-
-                SELECT *
-
-                FROM server
-
-            `);
-
-        for (const server of servers.rows) {
-
-            const heartbeatResult =
-                await pool.query(`
-
-                    SELECT received_at
-
-                    FROM server_heartbeat
-
-                    WHERE server_id = $1
-
-                    ORDER BY received_at DESC
-
-                    LIMIT 1
-
-                `, [server.id]);
-
-            const lastHeartbeat =
-                heartbeatResult.rows[0];
-
-            const isOnline =
-                lastHeartbeat &&
-
-                (
-                    Date.now() -
-
-                    new Date(
-                        lastHeartbeat.received_at
-                    ).getTime()
-
-                ) < 30000;
-
-            const openIncidentResult =
-                await pool.query(`
-
-                    SELECT *
-
-                    FROM server_incident
-
-                    WHERE server_id = $1
-
-                    AND status = 'open'
-
-                    LIMIT 1
-
-                `, [server.id]);
-
-            const openIncident =
-                openIncidentResult.rows[0];
-
-            // =========================
-            // OFFLINE -> abre incidente
-            // =========================
-
-            if (!isOnline && !openIncident) {
-
-                const incidentResult =
-                    await pool.query(`
-
-                        INSERT INTO server_incident (
-
-                            server_id,
-                            status,
-                            reason
-
-                        )
-
-                        VALUES ($1,$2,$3)
-
-                        RETURNING *
-
-                    `, [
-
-                        server.id,
-                        'open',
-                        'heartbeat_timeout'
-
-                    ]);
-
-                const incident =
-                    incidentResult.rows[0];
-
-                await correlateIncident(
-                    incident.id,
-                    incident.started_at
-                );
-
-                console.log(
-                    `[INCIDENT] Aberto para ${server.hostname}`
-                );
-
-            }
-
-            // =========================
-            // ONLINE -> resolve incidente
-            // =========================
-
-            if (isOnline && openIncident) {
-
-                const startedAt =
-                    new Date(
-                        openIncident.started_at
-                    );
-
-                const durationSeconds =
-                    Math.floor(
-
-                        (
-                            Date.now() -
-                            startedAt.getTime()
-                        ) / 1000
-
-                    );
-
-                await pool.query(`
-
-                    UPDATE server_incident
-
-                    SET
-
-                        status = 'resolved',
-
-                        resolved_at = NOW(),
-
-                        duration_seconds = $1
-
-                    WHERE id = $2
-
-                `, [
-
-                    durationSeconds,
-                    openIncident.id
-
-                ]);
-
-                console.log(
-                    `[INCIDENT] Resolvido para ${server.hostname}`
-                );
-
-            }
-
-        }
-
+        res.json(result.rows);
     } catch (error) {
+        console.error(error);
 
-        console.error(
-            '[INCIDENT ERROR]',
-            error
-        );
-
+        res.status(500).json({
+            error: 'Erro ao buscar deploys'
+        });
     }
-
-}
-
-cron.schedule('*/15 * * * * *', () => {
-
-    checkIncidents();
-
 });
 
-module.exports = {
-    checkIncidents
-};
+// ===============================
+// REGISTRAR DEPLOY
+// ===============================
+
+router.post('/', async (req, res) => {
+    try {
+        const {
+            version,
+            commit_sha,
+            status,
+            smoke_test_passed,
+            notes
+        } = req.body;
+
+        const result = await pool.query(`
+            INSERT INTO deploy_registry (
+                version,
+                commit_sha,
+                status,
+                smoke_test_passed,
+                notes
+            )
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING *
+        `, [
+            version,
+            commit_sha,
+            status,
+            smoke_test_passed,
+            notes
+        ]);
+
+        res.status(201).json(result.rows[0]);
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: 'Erro ao registrar deploy'
+        });
+    }
+});
+
+// ===============================
+// DEPLOY CORRELATIONS
+// ===============================
+
+router.get('/correlations', async (req, res) => {
+    try {
+        const result = await pool.query(`
+            SELECT
+                c.id AS correlation_id,
+                c.correlation_score,
+                c.created_at AS correlated_at,
+
+                d.id AS deploy_id,
+                d.version,
+                d.commit_sha,
+                d.status AS deploy_status,
+                d.smoke_test_passed,
+                d.deployed_at,
+
+                i.id AS incident_id,
+                i.server_id,
+                i.status AS incident_status,
+                i.reason,
+                i.started_at,
+                i.resolved_at,
+                i.duration_seconds,
+
+                s.name AS server_name,
+                s.hostname,
+                s.ip_address
+
+            FROM deploy_incident_correlation c
+
+            JOIN deploy_registry d
+                ON d.id = c.deploy_id
+
+            JOIN server_incident i
+                ON i.id = c.incident_id
+
+            LEFT JOIN server s
+                ON s.id = i.server_id
+
+            ORDER BY i.started_at DESC
+        `);
+
+        res.json(result.rows);
+    } catch (error) {
+        console.error(error);
+
+        res.status(500).json({
+            error: 'Erro ao buscar correlações'
+        });
+    }
+});
+
+module.exports = router;
