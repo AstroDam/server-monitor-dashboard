@@ -17,6 +17,9 @@ const metricsRoutes =
 
 const deployRoutes = require('./routes/deploy');
 
+const deployRegistryRoutes =
+    require('./routes/deployRegistry');
+
 const usersRoutes =
     require('./routes/users');
 
@@ -50,6 +53,11 @@ app.use('/users', usersRoutes);
 app.use('/health', healthRoutes);
 
 app.use('/deploy', deployRoutes);
+
+app.use(
+    '/deploy-registry',
+    deployRegistryRoutes
+);
 
 // SOCKET GLOBAL
 
