@@ -1,5 +1,4 @@
 CREATE TABLE IF NOT EXISTS deploy_incident_correlation (
-
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
 
     deploy_id UUID NOT NULL
@@ -13,7 +12,6 @@ CREATE TABLE IF NOT EXISTS deploy_incident_correlation (
     correlation_score INTEGER DEFAULT 100,
 
     created_at TIMESTAMP DEFAULT NOW()
-
 );
 
 CREATE INDEX IF NOT EXISTS idx_correlation_deploy
