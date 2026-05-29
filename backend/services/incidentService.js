@@ -2,6 +2,10 @@ const cron = require('node-cron');
 
 const pool = require('../db');
 
+const {
+    correlateIncident
+} = require('./deployCorrelationService');
+
 async function checkIncidents() {
 
     try {
@@ -71,25 +75,36 @@ async function checkIncidents() {
 
             if (!isOnline && !openIncident) {
 
-                await pool.query(`
+                const incidentResult =
+                    await pool.query(`
 
-                    INSERT INTO server_incident (
+                        INSERT INTO server_incident (
 
-                        server_id,
-                        status,
-                        reason
+                            server_id,
+                            status,
+                            reason
 
-                    )
+                        )
 
-                    VALUES ($1,$2,$3)
+                        VALUES ($1,$2,$3)
 
-                `, [
+                        RETURNING *
 
-                    server.id,
-                    'open',
-                    'heartbeat_timeout'
+                    `, [
 
-                ]);
+                        server.id,
+                        'open',
+                        'heartbeat_timeout'
+
+                    ]);
+
+                const incident =
+                    incidentResult.rows[0];
+
+                await correlateIncident(
+                    incident.id,
+                    incident.started_at
+                );
 
                 console.log(
                     `[INCIDENT] Aberto para ${server.hostname}`
