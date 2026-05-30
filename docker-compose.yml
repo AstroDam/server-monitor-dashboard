@@ -22,7 +22,7 @@ services:
     ports:
       - "3000:3000"
     env_file:
-    - ./backend/.env
+      - ./backend/.env
     environment:
       DB_HOST: postgres
       DB_PORT: 5432
@@ -48,6 +48,7 @@ services:
       - backend
     environment:
       API_BASE: http://backend:3000/metrics
+      AGENT_TOKEN: agent-local-123
 
   nginx:
     image: nginx:stable-alpine
