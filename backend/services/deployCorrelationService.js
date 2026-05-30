@@ -10,7 +10,7 @@ async function correlateIncident(incidentId, incidentTime) {
             `
             SELECT *
             FROM deploy_registry
-            WHERE deployed_at >= $1::timestamp - INTERVAL '10 minutes'
+            WHERE deployed_at >= $1::timestamp - INTERVAL '60 minutes'
               AND deployed_at <= $1
             ORDER BY deployed_at DESC
             LIMIT 1
