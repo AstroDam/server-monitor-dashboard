@@ -1,5 +1,9 @@
 const pool = require('../db');
 
+const {
+    evaluateRollbackReadiness
+} = require('./rollbackReadinessService');
+
 async function updateDeployRisk(deployId) {
 
     try {
@@ -55,6 +59,10 @@ async function updateDeployRisk(deployId) {
             deployId
 
         ]);
+
+        await evaluateRollbackReadiness(
+            deployId
+        );
 
         console.log(
 
