@@ -1,3 +1,7 @@
+const {
+    updateDeployRisk
+} = require('./deployRiskService');
+
 const pool = require('../db');
 
 async function correlateIncident(incidentId, incidentTime) {
@@ -34,6 +38,10 @@ async function correlateIncident(incidentId, incidentTime) {
                 incidentId,
                 100
             ]
+        );
+
+        await updateDeployRisk(
+            deploy.id
         );
 
         console.log('[DEPLOY CORRELATION]', deploy.version, '->', incidentId);
