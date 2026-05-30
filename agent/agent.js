@@ -53,7 +53,7 @@ async function collectMetrics() {
                 osInfo.platform,
 
             ip_address:
-                network.iface || null,
+                null,
 
             cpu:
                 Number(
