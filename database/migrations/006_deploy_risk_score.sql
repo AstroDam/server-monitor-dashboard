@@ -1,0 +1,7 @@
+ALTER TABLE deploy_registry
+
+ADD COLUMN IF NOT EXISTS risk_score INTEGER DEFAULT 0;
+
+ALTER TABLE deploy_registry
+
+ADD COLUMN IF NOT EXISTS risk_level VARCHAR(20) DEFAULT 'LOW';
