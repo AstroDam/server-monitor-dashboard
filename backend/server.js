@@ -23,6 +23,9 @@ const deployRegistryRoutes =
 const usersRoutes =
     require('./routes/users');
 
+const rollbackRoutes =
+    require('./routes/rollback');
+
 require('./services/metricsCollector');
 
 require('./services/retentionService');
@@ -53,6 +56,8 @@ app.use('/users', usersRoutes);
 app.use('/health', healthRoutes);
 
 app.use('/deploy', deployRoutes);
+
+app.use('/rollback', rollbackRoutes);
 
 app.use(
     '/deploy-registry',
